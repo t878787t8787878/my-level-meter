@@ -1,110 +1,209 @@
 <!DOCTYPE html>
-<html>
+<html lang="zh-Hant">
 <head>
-  <title>手機水平儀 (除錯版)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <style>
-    body, html { margin: 0; padding: 0; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; background-color: #f0f0f0; font-family: sans-serif; overflow: hidden; }
-    #level-container { width: 200px; height: 200px; border: 4px solid #333; border-radius: 50%; position: relative; background-color: #fff; box-shadow: 0 0 10px rgba(0,0,0,0.2); }
-    #bubble { width: 40px; height: 40px; background-color: rgba(0, 150, 255, 0.7); border-radius: 50%; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); transition: transform 0.1s ease-out; }
-    #center-mark { width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
-    #center-mark::before, #center-mark::after { content: ''; position: absolute; background-color: #ccc; }
-    #center-mark::before { width: 100%; height: 1px; }
-    #center-mark::after { width: 1px; height: 100%; }
-    #permission-button { padding: 15px 30px; font-size: 18px; cursor: pointer; border: none; border-radius: 5px; background-color: #00B900; color: white; }
-    #data-display { position: absolute; top: 20px; text-align: center; font-size: 16px; color: #555; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>晃動偵測特效</title>
+    <style>
+        /* --- 基本頁面設定 --- */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #1a1a1a;
+            color: #f0f0f0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        /* --- 漸層效果的容器 (Overlay) --- */
+        .overlay {
+            position: fixed;
+            /* 預設為透明，不可見 */
+            opacity: 0; 
+            /* 讓淡入淡出有 0.5 秒的過渡動畫 */
+            transition: opacity 0.5s ease-out; 
+            /* 讓滑鼠可以穿透，不影響底下內容 */
+            pointer-events: none; 
+        }
+
+        /* --- 四個方向的漸層設定 --- */
+        #overlay-right {
+            top: 0;
+            right: 0;
+            width: 30%; /* 漸層寬度 */
+            height: 100%;
+            background: linear-gradient(to left, rgba(255, 0, 0, 0.7), transparent); /* 右至左，紅到透明 */
+        }
+
+        #overlay-left {
+            top: 0;
+            left: 0;
+            width: 30%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(0, 150, 255, 0.7), transparent); /* 左至右，藍到透明 */
+        }
+
+        #overlay-top {
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 30%; /* 漸層高度 */
+            background: linear-gradient(to bottom, rgba(0, 255, 0, 0.7), transparent); /* 上至下，綠到透明 */
+        }
+
+        #overlay-bottom {
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30%;
+            background: linear-gradient(to top, rgba(255, 255, 0, 0.7), transparent); /* 下至上，黃到透明 */
+        }
+
+        /* --- 畫面上方的文字與按鈕 --- */
+        .content {
+            z-index: 10;
+        }
+        
+        #permission-button {
+            padding: 15px 30px;
+            font-size: 18px;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            color: white;
+            background-color: #007BFF;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+
+        #debug-info {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 12px;
+            font-family: monospace;
+            color: #fff;
+        }
+    </style>
 </head>
 <body>
 
-  <button id="permission-button">點擊我啟用水平儀</button>
+    <div id="overlay-right" class="overlay"></div>
+    <div id="overlay-left" class="overlay"></div>
+    <div id="overlay-top" class="overlay"></div>
+    <div id="overlay-bottom" class="overlay"></div>
 
-  <div id="level-container" style="display:none;">
-    <div id="center-mark"></div>
-    <div id="bubble"></div>
-  </div>
-  <div id="data-display" style="display:none;"></div>
+    <div class="content">
+        <h1 id="status-text">請搖動您的手機！</h1>
+        <button id="permission-button" style="display: none;">啟用感測器</button>
+    </div>
 
-  <script>
-    const permissionButton = document.getElementById('permission-button');
-    const levelContainer = document.getElementById('level-container');
-    const bubble = document.getElementById('bubble');
-    const dataDisplay = document.getElementById('data-display');
-    const containerSize = 200;
-    const bubbleSize = 40;
-    const maxTilt = 45;
+    <div id="debug-info">
+        X: 0<br>
+        Y: 0
+    </div>
 
-    // 新增：檢查是否在安全連線下
-    if (window.location.protocol !== 'https:') {
-        alert('錯誤：頁面必須在 HTTPS 安全連線下才能存取感測器。');
-        permissionButton.disabled = true;
-        permissionButton.textContent = '無法在不安全的連線中使用';
-        permissionButton.style.backgroundColor = '#888';
-    }
+    <script>
+        // --- 取得頁面元素 ---
+        const overlays = {
+            right: document.getElementById('overlay-right'),
+            left: document.getElementById('overlay-left'),
+            top: document.getElementById('overlay-top'),
+            bottom: document.getElementById('overlay-bottom')
+        };
+        const permissionButton = document.getElementById('permission-button');
+        const statusText = document.getElementById('status-text');
+        const debugInfo = document.getElementById('debug-info');
+        
+        // --- 可調整的參數 ---
+        // 晃動的靈敏度，數值越小越靈敏
+        const SHAKE_THRESHOLD = 15; 
+        // 效果淡出的時間 (毫秒)
+        const RESET_TIMEOUT = 500; 
 
-    permissionButton.addEventListener('click', requestOrientationPermission);
+        // 用於存放各方向的計時器 ID
+        const timeoutIDs = {
+            right: null,
+            left: null,
+            top: null,
+            bottom: null
+        };
 
-    function requestOrientationPermission() {
-      try {
-        // iOS 13+ 裝置的處理方式
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-          alert('偵測到 iOS 裝置，正在請求權限...');
-          DeviceOrientationEvent.requestPermission()
-            .then(permissionState => {
-              if (permissionState === 'granted') {
-                alert('權限已取得！');
-                window.addEventListener('deviceorientation', handleOrientation);
-                startApp();
-              } else {
-                alert('您拒絕了權限請求。');
-              }
-            })
-            .catch(error => {
-                alert('請求權限時發生錯誤：' + error);
-                console.error(error);
-            });
+        // 檢查是否為 iOS (需要使用者手動授權)
+        const isIOS = typeof DeviceMotionEvent?.requestPermission === 'function';
+
+        // 觸發效果的函式
+        function triggerEffect(direction) {
+            // 先清除該方向上一個計時器，防止連續觸發時閃爍
+            clearTimeout(timeoutIDs[direction]);
+
+            // 讓該方向的漸層顯示出來
+            overlays[direction].style.opacity = '1';
+
+            // 設定一個新的計時器，在 RESET_TIMEOUT 毫秒後將漸層淡出
+            timeoutIDs[direction] = setTimeout(() => {
+                overlays[direction].style.opacity = '0';
+            }, RESET_TIMEOUT);
         }
-        // Android 或其他裝置的處理方式
-        else if (typeof DeviceOrientationEvent !== 'undefined') {
-           alert('偵測到 Android 或其他裝置，正在嘗試啟動...');
-           window.addEventListener('deviceorientation', handleOrientation);
-           startApp();
-           // 增加一個超時檢查，以防事件監聽器雖然加上了，卻從未觸發
-           setTimeout(() => {
-               if(dataDisplay.innerHTML === ''){
-                   alert('提示：感測器已啟動，但未收到任何數據。請嘗試搖動手機，或檢查瀏覽器權限設定。');
-                   dataDisplay.innerHTML = '等待感測器數據中...';
-               }
-           }, 2000);
-        }
-        else {
-            alert('錯誤：您的瀏覽器不支援 DeviceOrientationEvent API。');
-        }
-      } catch (error) {
-        alert('執行時發生未預期的錯誤：' + error);
-        console.error(error);
-      }
-    }
+        
+        // 處理裝置晃動事件的核心函式
+        function handleMotionEvent(event) {
+            // 我們使用 event.acceleration 來偵測加速度，而不是包含重力的 event.accelerationIncludingGravity
+            const acc = event.acceleration;
 
-    function startApp() {
-        permissionButton.style.display = 'none';
-        levelContainer.style.display = 'block';
-        dataDisplay.style.display = 'block';
-    }
+            if (!acc) return; // 如果沒有加速度數據，則返回
 
-    function handleOrientation(event) {
-      if(event.beta === null || event.gamma === null) {
-          return; // 如果數據無效則不處理
-      }
-      let beta = event.beta;
-      let gamma = event.gamma;
-      beta = Math.max(-maxTilt, Math.min(maxTilt, beta));
-      gamma = Math.max(-maxTilt, Math.min(maxTilt, gamma));
-      const xOffset = (gamma / maxTilt) * (containerSize / 2 - bubbleSize / 2);
-      const yOffset = (beta / maxTilt) * (containerSize / 2 - bubbleSize / 2);
-      bubble.style.transform = `translate(-50%, -50%) translate(${xOffset}px, ${yOffset}px)`;
-      dataDisplay.innerHTML = `前後傾斜 (Beta): ${Math.round(event.beta)}°<br>左右傾斜 (Gamma): ${Math.round(event.gamma)}°`;
-    }
-  </script>
+            const { x, y } = acc;
+
+            // 更新除錯資訊
+            debugInfo.innerHTML = `X: ${x.toFixed(2)}<br>Y: ${y.toFixed(2)}`;
+
+            // 根據 X 和 Y 軸的加速度判斷晃動方向並觸發效果
+            if (x > SHAKE_THRESHOLD) {
+                triggerEffect('right');
+            } else if (x < -SHAKE_THRESHOLD) {
+                triggerEffect('left');
+            }
+
+            if (y > SHAKE_THRESHOLD) {
+                triggerEffect('top');
+            } else if (y < -SHAKE_THRESHOLD) {
+                triggerEffect('bottom');
+            }
+        }
+        
+        // --- 頁面載入後的啟動邏輯 ---
+        function startListening() {
+            statusText.textContent = '感測器已啟用！';
+            permissionButton.style.display = 'none';
+            window.addEventListener('devicemotion', handleMotionEvent);
+        }
+
+        if (isIOS) {
+            // 如果是 iOS，顯示授權按鈕
+            permissionButton.style.display = 'block';
+            statusText.textContent = '請點擊按鈕以授權感測器';
+            permissionButton.onclick = () => {
+                DeviceMotionEvent.requestPermission().then(response => {
+                    if (response === 'granted') {
+                        startListening();
+                    } else {
+                        statusText.textContent = '您拒絕了授權';
+                    }
+                });
+            };
+        } else {
+            // 如果是 Android 或其他裝置，直接啟動
+            startListening();
+        }
+    </script>
 </body>
 </html>
