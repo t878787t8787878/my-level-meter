@@ -1,209 +1,215 @@
 <!DOCTYPE html>
-<html lang="zh-Hant">
+<html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>晃動偵測特效</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>鳥人方位追蹤系統</title>
     <style>
-        /* --- 基本頁面設定 --- */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            background-color: #1a1a1a;
-            color: #f0f0f0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        body {
+            background-color: #121212;
+            color: #00ffcc;
+            font-family: 'Courier New', Courier, monospace;
             display: flex;
-            justify-content: center;
+            flex-direction: column;
             align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
             text-align: center;
         }
-
-        /* --- 漸層效果的容器 (Overlay) --- */
-        .overlay {
-            position: fixed;
-            /* 預設為透明，不可見 */
-            opacity: 0; 
-            /* 讓淡入淡出有 0.5 秒的過渡動畫 */
-            transition: opacity 0.5s ease-out; 
-            /* 讓滑鼠可以穿透，不影響底下內容 */
-            pointer-events: none; 
-        }
-
-        /* --- 四個方向的漸層設定 --- */
-        #overlay-right {
-            top: 0;
-            right: 0;
-            width: 30%; /* 漸層寬度 */
-            height: 100%;
-            background: linear-gradient(to left, rgba(255, 0, 0, 0.7), transparent); /* 右至左，紅到透明 */
-        }
-
-        #overlay-left {
-            top: 0;
-            left: 0;
-            width: 30%;
-            height: 100%;
-            background: linear-gradient(to right, rgba(0, 150, 255, 0.7), transparent); /* 左至右，藍到透明 */
-        }
-
-        #overlay-top {
-            top: 0;
-            left: 0;
+        #setup-screen, #radar-screen, #success-screen {
+            display: none;
             width: 100%;
-            height: 30%; /* 漸層高度 */
-            background: linear-gradient(to bottom, rgba(0, 255, 0, 0.7), transparent); /* 上至下，綠到透明 */
+            max-width: 400px;
+            padding: 20px;
+            box-sizing: border-box;
         }
+        #setup-screen { display: block; } /* 預設顯示首頁 */
 
-        #overlay-bottom {
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            height: 30%;
-            background: linear-gradient(to top, rgba(255, 255, 0, 0.7), transparent); /* 下至上，黃到透明 */
-        }
+        h1 { font-size: 1.5rem; letter-spacing: 2px; }
+        p { color: #888; font-size: 0.9rem; line-height: 1.5; }
 
-        /* --- 畫面上方的文字與按鈕 --- */
-        .content {
-            z-index: 10;
-        }
-        
-        #permission-button {
+        .btn {
+            background-color: transparent;
+            color: #00ffcc;
+            border: 2px solid #00ffcc;
             padding: 15px 30px;
-            font-size: 18px;
-            cursor: pointer;
-            border: none;
+            font-size: 1.2rem;
+            font-family: inherit;
             border-radius: 8px;
-            color: white;
-            background-color: #007BFF;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+            cursor: pointer;
+            margin-top: 20px;
+            transition: all 0.3s ease;
         }
+        .btn:active { background-color: #00ffcc; color: #121212; }
+        .btn-calibrate { border-color: #ff3366; color: #ff3366; }
+        .btn-calibrate:active { background-color: #ff3366; color: #121212; }
 
-        #debug-info {
-            position: fixed;
-            bottom: 10px;
-            left: 10px;
-            background-color: rgba(0, 0, 0, 0.5);
-            padding: 8px;
-            border-radius: 5px;
-            font-size: 12px;
-            font-family: monospace;
-            color: #fff;
+        /* 羅盤視覺設計 */
+        .compass-container {
+            position: relative;
+            width: 250px;
+            height: 250px;
+            margin: 40px auto;
+            border: 2px dashed #333;
+            border-radius: 50%;
         }
+        .compass-ring {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            border: 4px solid #00ffcc;
+            border-radius: 50%;
+            transition: transform 0.1s ease-out; /* 平滑轉動 */
+        }
+        .compass-arrow {
+            position: absolute;
+            top: 10px; left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-bottom: 30px solid #ff3366; /* 紅色指標代表正前方 */
+        }
+        .angle-display {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 2.5rem;
+            font-weight: bold;
+        }
+        .target-hint { margin-top: 20px; color: #ffcc00; }
     </style>
 </head>
 <body>
 
-    <div id="overlay-right" class="overlay"></div>
-    <div id="overlay-left" class="overlay"></div>
-    <div id="overlay-top" class="overlay"></div>
-    <div id="overlay-bottom" class="overlay"></div>
-
-    <div class="content">
-        <h1 id="status-text">請搖動您的手機！</h1>
-        <button id="permission-button" style="display: none;">啟用感測器</button>
+    <div id="setup-screen">
+        <h1>空間羅盤系統</h1>
+        <p>警告：偵測到環境磁場異常。<br>請將手機平放於「調查盒」頂部，雙手捧住盒子，準備啟動追蹤。</p>
+        <button class="btn" id="btn-start">授權並啟動羅盤</button>
     </div>
 
-    <div id="debug-info">
-        X: 0<br>
-        Y: 0
+    <div id="radar-screen">
+        <h1>尋找 M1 殘影</h1>
+        <p>請將盒子頂部對準正前方，並按下校正鈕鎖定方位。</p>
+        
+        <div class="compass-container">
+            <div class="compass-ring" id="compass-ring">
+                <div class="compass-arrow"></div>
+            </div>
+            <div class="angle-display" id="angle-text">0°</div>
+        </div>
+
+        <button class="btn btn-calibrate" id="btn-calibrate">設定基準點 (0°)</button>
+        <p class="target-hint">目標：向右轉身 90 度</p>
     </div>
 
-    <script>
-        // --- 取得頁面元素 ---
-        const overlays = {
-            right: document.getElementById('overlay-right'),
-            left: document.getElementById('overlay-left'),
-            top: document.getElementById('overlay-top'),
-            bottom: document.getElementById('overlay-bottom')
-        };
-        const permissionButton = document.getElementById('permission-button');
-        const statusText = document.getElementById('status-text');
-        const debugInfo = document.getElementById('debug-info');
-        
-        // --- 可調整的參數 ---
-        // 晃動的靈敏度，數值越小越靈敏
-        const SHAKE_THRESHOLD = 2; 
-        // 效果淡出的時間 (毫秒)
-        const RESET_TIMEOUT = 500; 
+    <div id="success-screen">
+        <h1 style="color: #ffcc00;">座標鎖定成功！</h1>
+        <p>鳥人的路徑已開啟...</p>
+        <h2 style="color: #fff; letter-spacing: 5px;">密碼：DAYDREAM</h2>
+    </div>
 
-        // 用於存放各方向的計時器 ID
-        const timeoutIDs = {
-            right: null,
-            left: null,
-            top: null,
-            bottom: null
-        };
+<script>
+    // UI 元件
+    const setupScreen = document.getElementById('setup-screen');
+    const radarScreen = document.getElementById('radar-screen');
+    const successScreen = document.getElementById('success-screen');
+    const compassRing = document.getElementById('compass-ring');
+    const angleText = document.getElementById('angle-text');
+    
+    // 角度變數
+    let zeroOffset = 0;    // 玩家設定的 0 度基準線
+    let currentRawAngle = 0; // 手機當前的原始角度
+    let isUnlocked = false;  // 是否已經解謎成功
 
-        // 檢查是否為 iOS (需要使用者手動授權)
-        const isIOS = typeof DeviceMotionEvent?.requestPermission === 'function';
-
-        // 觸發效果的函式
-        function triggerEffect(direction) {
-            // 先清除該方向上一個計時器，防止連續觸發時閃爍
-            clearTimeout(timeoutIDs[direction]);
-
-            // 讓該方向的漸層顯示出來
-            overlays[direction].style.opacity = '1';
-
-            // 設定一個新的計時器，在 RESET_TIMEOUT 毫秒後將漸層淡出
-            timeoutIDs[direction] = setTimeout(() => {
-                overlays[direction].style.opacity = '0';
-            }, RESET_TIMEOUT);
-        }
-        
-        // 處理裝置晃動事件的核心函式
-        function handleMotionEvent(event) {
-            // 我們使用 event.acceleration 來偵測加速度，而不是包含重力的 event.accelerationIncludingGravity
-            const acc = event.acceleration;
-
-            if (!acc) return; // 如果沒有加速度數據，則返回
-
-            const { x, y } = acc;
-
-            // 更新除錯資訊
-            debugInfo.innerHTML = `X: ${x.toFixed(2)}<br>Y: ${y.toFixed(2)}`;
-
-            // 根據 X 和 Y 軸的加速度判斷晃動方向並觸發效果
-            if (x > SHAKE_THRESHOLD) {
-                triggerEffect('right');
-            } else if (x < -SHAKE_THRESHOLD) {
-                triggerEffect('left');
-            }
-
-            if (y > SHAKE_THRESHOLD) {
-                triggerEffect('top');
-            } else if (y < -SHAKE_THRESHOLD) {
-                triggerEffect('bottom');
-            }
-        }
-        
-        // --- 頁面載入後的啟動邏輯 ---
-        function startListening() {
-            statusText.textContent = '感測器已啟用！';
-            permissionButton.style.display = 'none';
-            window.addEventListener('devicemotion', handleMotionEvent);
-        }
-
-        if (isIOS) {
-            // 如果是 iOS，顯示授權按鈕
-            permissionButton.style.display = 'block';
-            statusText.textContent = '請點擊按鈕以授權感測器';
-            permissionButton.onclick = () => {
-                DeviceMotionEvent.requestPermission().then(response => {
-                    if (response === 'granted') {
-                        startListening();
+    // 1. 啟動並要求 iOS 權限
+    document.getElementById('btn-start').addEventListener('click', () => {
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            // iOS 13+ 需要這行
+            DeviceOrientationEvent.requestPermission()
+                .then(permissionState => {
+                    if (permissionState === 'granted') {
+                        startCompass();
                     } else {
-                        statusText.textContent = '您拒絕了授權';
+                        alert('需要陀螺儀權限才能進行實境解謎喔！');
                     }
-                });
-            };
+                })
+                .catch(console.error);
         } else {
-            // 如果是 Android 或其他裝置，直接啟動
-            startListening();
+            // Android 或舊版 iOS 直接啟動
+            startCompass();
         }
-    </script>
+    });
+
+    // 2. 切換畫面並開始監聽感測器
+    function startCompass() {
+        setupScreen.style.display = 'none';
+        radarScreen.style.display = 'block';
+        
+        window.addEventListener('deviceorientation', handleOrientation);
+    }
+
+    // 3. 處理手機轉動數據
+    function handleOrientation(event) {
+        if (isUnlocked) return; // 解謎成功就停止更新
+
+        // iOS 通常提供 webkitCompassHeading (順時針)，Android 依賴 alpha (逆時針)
+        // 為了統一，我們將其標準化為順時針 0-360 度
+        let rawAngle = 0;
+        if (event.webkitCompassHeading) {
+            rawAngle = event.webkitCompassHeading; 
+        } else if (event.alpha !== null) {
+            rawAngle = 360 - event.alpha; 
+        }
+        
+        currentRawAngle = rawAngle;
+        updateUI();
+    }
+
+    // 4. 校正歸零按鈕
+    document.getElementById('btn-calibrate').addEventListener('click', () => {
+        zeroOffset = currentRawAngle; // 將現在的原始角度設為新的 0 度
+        
+        // 觸覺回饋 (如果手機支援)
+        if (navigator.vibrate) navigator.vibrate(50); 
+        
+        updateUI();
+    });
+
+    // 5. 更新畫面與判斷解謎邏輯
+    function updateUI() {
+        // 計算相對角度：(現在角度 - 基準角度 + 360) % 360
+        let relativeAngle = Math.round((currentRawAngle - zeroOffset + 360) % 360);
+        
+        // 為了讓顯示更直覺，可以把 180~360度 轉成負數 (例如向左轉是 -90度)
+        // 但這裡我們保持 0~359 度，目標是向右轉 90 度
+        
+        angleText.innerText = relativeAngle + '°';
+        
+        // 轉動羅盤視覺 (CSS transform)
+        // 注意：因為外框要跟著轉，我們反向旋轉它
+        compassRing.style.transform = `rotate(${-relativeAngle}deg)`;
+
+        // 解謎判斷：如果玩家轉到了 85度 ~ 95度 之間 (給予手抖的容錯率)
+        if (relativeAngle >= 85 && relativeAngle <= 95) {
+            triggerSuccess();
+        }
+    }
+
+    // 6. 解謎成功觸發
+    function triggerSuccess() {
+        isUnlocked = true;
+        window.removeEventListener('deviceorientation', handleOrientation);
+        
+        // 強烈震動回饋
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
+
+        radarScreen.style.display = 'none';
+        successScreen.style.display = 'block';
+    }
+</script>
+
 </body>
 </html>
+
