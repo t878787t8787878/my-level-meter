@@ -79,6 +79,16 @@
             font-weight: bold;
         }
         .target-hint { margin-top: 20px; color: #ffcc00; }
+        
+        /* 版本號標籤 */
+        #version-tag {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            color: #555;
+            font-size: 0.8rem;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -110,8 +120,9 @@
         <h2 style="color: #fff; letter-spacing: 5px;">密碼：DAYDREAM</h2>
     </div>
 
+    <div id="version-tag">Version: 2.0 (Crossover Fix)</div>
+
 <script>
-    // UI 元件
     const setupScreen = document.getElementById('setup-screen');
     const radarScreen = document.getElementById('radar-screen');
     const successScreen = document.getElementById('success-screen');
@@ -123,14 +134,13 @@
     let currentRawAngle = 0; 
     let isUnlocked = false;  
 
-    // --- 新增這兩個變數 ---
-    let lastRelativeAngle = 0;  // 記錄上一次的 0~359 角度
-    let continuousRotation = 0; // 用於 CSS 的無限累加平滑角度
+    // 解決 360 度跨越暴衝的核心變數
+    let lastRelativeAngle = 0;  
+    let continuousRotation = 0; 
 
     // 1. 啟動並要求 iOS 權限
     document.getElementById('btn-start').addEventListener('click', () => {
         if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            // iOS 13+ 需要這行
             DeviceOrientationEvent.requestPermission()
                 .then(permissionState => {
                     if (permissionState === 'granted') {
@@ -141,7 +151,6 @@
                 })
                 .catch(console.error);
         } else {
-            // Android 或舊版 iOS 直接啟動
             startCompass();
         }
     });
@@ -156,10 +165,8 @@
 
     // 3. 處理手機轉動數據
     function handleOrientation(event) {
-        if (isUnlocked) return; // 解謎成功就停止更新
+        if (isUnlocked) return; 
 
-        // iOS 通常提供 webkitCompassHeading (順時針)，Android 依賴 alpha (逆時針)
-        // 為了統一，我們將其標準化為順時針 0-360 度
         let rawAngle = 0;
         if (event.webkitCompassHeading) {
             rawAngle = event.webkitCompassHeading; 
@@ -175,7 +182,7 @@
     document.getElementById('btn-calibrate').addEventListener('click', () => {
         zeroOffset = currentRawAngle; 
         
-        // --- 新增重置邏輯 ---
+        // 重置歷史紀錄，避免按下校正瞬間羅盤亂轉
         lastRelativeAngle = 0;
         continuousRotation = 0;
         
@@ -185,32 +192,32 @@
 
     // 5. 更新畫面與判斷解謎邏輯
     function updateUI() {
-        // 算出傳統的 0~359 度 (用於顯示文字與解謎判斷)
+        // 算出 0~359 的直覺數字
         let relativeAngle = Math.round((currentRawAngle - zeroOffset + 360) % 360);
         
-        // --- 核心修正：計算最短旋轉路徑 (防止 0/360 暴衝) ---
+        // 核心修正：計算最短旋轉路徑 (防止 0/360 暴衝)
         let delta = relativeAngle - lastRelativeAngle;
         
+        // 如果差距大於 180 度，代表跨越了 0/360 邊界，進行反向修正
         if (delta > 180) {
-            // 例如從 10 變到 350，差值是 340，修正為向左短轉 (-20)
             delta -= 360; 
         } else if (delta < -180) {
-            // 例如從 350 變到 10，差值是 -340，修正為向右短轉 (+20)
             delta += 360; 
         }
         
-        // 將真正的位移量累加進去
+        // 將真正的物理位移量累加進去
         continuousRotation += delta;
-        lastRelativeAngle = relativeAngle; // 存檔給下一次比較用
-        // --------------------------------------------------
         
-        // 畫面中央的數字依然顯示 0~359 的直覺數字
+        // 存檔給下一次比較用
+        lastRelativeAngle = relativeAngle;
+        
+        // 畫面中央的數字依然顯示 0~359
         angleText.innerText = relativeAngle + '°';
         
         // 羅盤外框的轉動改用「連續角度」，徹底解決亂跳
         compassRing.style.transform = `rotate(${-continuousRotation}deg)`;
 
-        // 解謎判斷：目標轉向 90 度 (給予 ±5 度的手抖容錯)
+        // 解謎判斷：目標轉向 90 度 (容錯 ±5 度)
         if (relativeAngle >= 85 && relativeAngle <= 95) {
             triggerSuccess();
         }
@@ -221,7 +228,6 @@
         isUnlocked = true;
         window.removeEventListener('deviceorientation', handleOrientation);
         
-        // 強烈震動回饋
         if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
 
         radarScreen.style.display = 'none';
@@ -231,5 +237,3 @@
 
 </body>
 </html>
-
-
