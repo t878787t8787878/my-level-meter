@@ -119,9 +119,13 @@
     const angleText = document.getElementById('angle-text');
     
     // 角度變數
-    let zeroOffset = 0;    // 玩家設定的 0 度基準線
-    let currentRawAngle = 0; // 手機當前的原始角度
-    let isUnlocked = false;  // 是否已經解謎成功
+    let zeroOffset = 0;    
+    let currentRawAngle = 0; 
+    let isUnlocked = false;  
+
+    // --- 新增這兩個變數 ---
+    let lastRelativeAngle = 0;  // 記錄上一次的 0~359 角度
+    let continuousRotation = 0; // 用於 CSS 的無限累加平滑角度
 
     // 1. 啟動並要求 iOS 權限
     document.getElementById('btn-start').addEventListener('click', () => {
@@ -169,29 +173,44 @@
 
     // 4. 校正歸零按鈕
     document.getElementById('btn-calibrate').addEventListener('click', () => {
-        zeroOffset = currentRawAngle; // 將現在的原始角度設為新的 0 度
+        zeroOffset = currentRawAngle; 
         
-        // 觸覺回饋 (如果手機支援)
+        // --- 新增重置邏輯 ---
+        lastRelativeAngle = 0;
+        continuousRotation = 0;
+        
         if (navigator.vibrate) navigator.vibrate(50); 
-        
         updateUI();
     });
 
     // 5. 更新畫面與判斷解謎邏輯
     function updateUI() {
-        // 計算相對角度：(現在角度 - 基準角度 + 360) % 360
+        // 算出傳統的 0~359 度 (用於顯示文字與解謎判斷)
         let relativeAngle = Math.round((currentRawAngle - zeroOffset + 360) % 360);
         
-        // 為了讓顯示更直覺，可以把 180~360度 轉成負數 (例如向左轉是 -90度)
-        // 但這裡我們保持 0~359 度，目標是向右轉 90 度
+        // --- 核心修正：計算最短旋轉路徑 (防止 0/360 暴衝) ---
+        let delta = relativeAngle - lastRelativeAngle;
         
+        if (delta > 180) {
+            // 例如從 10 變到 350，差值是 340，修正為向左短轉 (-20)
+            delta -= 360; 
+        } else if (delta < -180) {
+            // 例如從 350 變到 10，差值是 -340，修正為向右短轉 (+20)
+            delta += 360; 
+        }
+        
+        // 將真正的位移量累加進去
+        continuousRotation += delta;
+        lastRelativeAngle = relativeAngle; // 存檔給下一次比較用
+        // --------------------------------------------------
+        
+        // 畫面中央的數字依然顯示 0~359 的直覺數字
         angleText.innerText = relativeAngle + '°';
         
-        // 轉動羅盤視覺 (CSS transform)
-        // 注意：因為外框要跟著轉，我們反向旋轉它
-        compassRing.style.transform = `rotate(${-relativeAngle}deg)`;
+        // 羅盤外框的轉動改用「連續角度」，徹底解決亂跳
+        compassRing.style.transform = `rotate(${-continuousRotation}deg)`;
 
-        // 解謎判斷：如果玩家轉到了 85度 ~ 95度 之間 (給予手抖的容錯率)
+        // 解謎判斷：目標轉向 90 度 (給予 ±5 度的手抖容錯)
         if (relativeAngle >= 85 && relativeAngle <= 95) {
             triggerSuccess();
         }
@@ -212,4 +231,5 @@
 
 </body>
 </html>
+
 
