@@ -2,238 +2,117 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>鳥人方位追蹤系統</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>鏡頭顏色辨識測試</title>
     <style>
         body {
-            background-color: #121212;
-            color: #00ffcc;
-            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
             display: flex;
             flex-direction: column;
-            align-items: center;
             justify-content: center;
+            align-items: center;
             height: 100vh;
-            margin: 0;
-            overflow: hidden;
-            text-align: center;
+            background-color: #f0f0f0;
+            font-family: sans-serif;
         }
-        #setup-screen, #radar-screen, #success-screen {
-            display: none;
-            width: 100%;
-            max-width: 400px;
-            padding: 20px;
-            box-sizing: border-box;
-        }
-        #setup-screen { display: block; } /* 預設顯示首頁 */
 
-        h1 { font-size: 1.5rem; letter-spacing: 2px; }
-        p { color: #888; font-size: 0.9rem; line-height: 1.5; }
-
-        .btn {
-            background-color: transparent;
-            color: #00ffcc;
-            border: 2px solid #00ffcc;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            font-family: inherit;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 20px;
-            transition: all 0.3s ease;
-        }
-        .btn:active { background-color: #00ffcc; color: #121212; }
-        .btn-calibrate { border-color: #ff3366; color: #ff3366; }
-        .btn-calibrate:active { background-color: #ff3366; color: #121212; }
-
-        /* 羅盤視覺設計 */
-        .compass-container {
-            position: relative;
-            width: 250px;
-            height: 250px;
-            margin: 40px auto;
-            border: 2px dashed #333;
+        /* 顯示辨識結果的區塊 */
+        #color-display {
+            width: 200px;
+            height: 200px;
             border-radius: 50%;
+            border: 5px solid #fff;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            margin-bottom: 20px;
+            transition: background-color 0.1s;
         }
-        .compass-ring {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            border: 4px solid #00ffcc;
-            border-radius: 50%;
-            transition: transform 0.1s ease-out; /* 平滑轉動 */
-        }
-        .compass-arrow {
-            position: absolute;
-            top: 10px; left: 50%;
-            transform: translateX(-50%);
-            width: 0; height: 0;
-            border-left: 15px solid transparent;
-            border-right: 15px solid transparent;
-            border-bottom: 30px solid #ff3366; /* 紅色指標代表正前方 */
-        }
-        .angle-display {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 2.5rem;
+
+        #hex-code {
+            font-size: 24px;
             font-weight: bold;
+            color: #333;
         }
-        .target-hint { margin-top: 20px; color: #ffcc00; }
-        
-        /* 版本號標籤 */
-        #version-tag {
-            position: fixed;
-            bottom: 10px;
-            right: 10px;
-            color: #555;
-            font-size: 0.8rem;
-            pointer-events: none;
+
+        /* 隱藏必要的視訊與畫布元素 */
+        video, canvas {
+            display: none;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
         }
     </style>
 </head>
 <body>
 
-    <div id="setup-screen">
-        <h1>空間羅盤系統</h1>
-        <p>警告：偵測到環境磁場異常。<br>請將手機平放於「調查盒」頂部，雙手捧住盒子，準備啟動追蹤。</p>
-        <button class="btn" id="btn-start">授權並啟動羅盤</button>
-    </div>
+    <div id="color-display"></div>
+    <div id="hex-code">點擊按鈕開始</div>
+    <button id="start-btn">開啟鏡頭辨識</button>
 
-    <div id="radar-screen">
-        <h1>尋找 M1 殘影</h1>
-        <p>請將盒子頂部對準正前方，並按下校正鈕鎖定方位。</p>
-        
-        <div class="compass-container">
-            <div class="compass-ring" id="compass-ring">
-                <div class="compass-arrow"></div>
-            </div>
-            <div class="angle-display" id="angle-text">0°</div>
-        </div>
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
 
-        <button class="btn btn-calibrate" id="btn-calibrate">設定基準點 (0°)</button>
-        <p class="target-hint">目標：向右轉身 90 度</p>
-    </div>
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        const colorDisplay = document.getElementById('color-display');
+        const hexCode = document.getElementById('hex-code');
+        const startBtn = document.getElementById('start-btn');
 
-    <div id="success-screen">
-        <h1 style="color: #ffcc00;">座標鎖定成功！</h1>
-        <p>鳥人的路徑已開啟...</p>
-        <h2 style="color: #fff; letter-spacing: 5px;">密碼：DAYDREAM</h2>
-    </div>
+        startBtn.addEventListener('click', async () => {
+            try {
+                // 1. 請求開啟前鏡頭 (facingMode: 'user')
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: 'user' } 
+                });
+                video.srcObject = stream;
+                startBtn.style.display = 'none'; // 開始後隱藏按鈕
+                
+                // 2. 開始循環辨識
+                requestAnimationFrame(processFrame);
+            } catch (err) {
+                console.error("無法存取鏡頭: ", err);
+                hexCode.innerText = "請允許鏡頭存取權限";
+            }
+        });
 
-    <div id="version-tag">Version: 2.0 (Crossover Fix)</div>
+        function processFrame() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                // 設定畫布尺寸與影片一致
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
 
-<script>
-    const setupScreen = document.getElementById('setup-screen');
-    const radarScreen = document.getElementById('radar-screen');
-    const successScreen = document.getElementById('success-screen');
-    const compassRing = document.getElementById('compass-ring');
-    const angleText = document.getElementById('angle-text');
-    
-    // 角度變數
-    let zeroOffset = 0;    
-    let currentRawAngle = 0; 
-    let isUnlocked = false;  
+                // 將影片目前的畫面畫到隱藏的畫布上
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    // 解決 360 度跨越暴衝的核心變數
-    let lastRelativeAngle = 0;  
-    let continuousRotation = 0; 
+                // 3. 取得中心點座標
+                const centerX = Math.floor(canvas.width / 2);
+                const centerY = Math.floor(canvas.height / 2);
 
-    // 1. 啟動並要求 iOS 權限
-    document.getElementById('btn-start').addEventListener('click', () => {
-        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
-            DeviceOrientationEvent.requestPermission()
-                .then(permissionState => {
-                    if (permissionState === 'granted') {
-                        startCompass();
-                    } else {
-                        alert('需要陀螺儀權限才能進行實境解謎喔！');
-                    }
-                })
-                .catch(console.error);
-        } else {
-            startCompass();
+                // 4. 取得該像素的顏色數據 (RGBA)
+                const pixel = ctx.getImageData(centerX, centerY, 1, 1).data;
+                const r = pixel[0];
+                const g = pixel[1];
+                const b = pixel[2];
+
+                // 轉換為 Hex 字串
+                const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
+
+                // 5. 更新 UI
+                colorDisplay.style.backgroundColor = hex;
+                hexCode.innerText = hex;
+            }
+
+            // 持續執行
+            requestAnimationFrame(processFrame);
         }
-    });
-
-    // 2. 切換畫面並開始監聽感測器
-    function startCompass() {
-        setupScreen.style.display = 'none';
-        radarScreen.style.display = 'block';
-        
-        window.addEventListener('deviceorientation', handleOrientation);
-    }
-
-    // 3. 處理手機轉動數據
-    function handleOrientation(event) {
-        if (isUnlocked) return; 
-
-        let rawAngle = 0;
-        if (event.webkitCompassHeading) {
-            rawAngle = event.webkitCompassHeading; 
-        } else if (event.alpha !== null) {
-            rawAngle = 360 - event.alpha; 
-        }
-        
-        currentRawAngle = rawAngle;
-        updateUI();
-    }
-
-    // 4. 校正歸零按鈕
-    document.getElementById('btn-calibrate').addEventListener('click', () => {
-        zeroOffset = currentRawAngle; 
-        
-        // 重置歷史紀錄，避免按下校正瞬間羅盤亂轉
-        lastRelativeAngle = 0;
-        continuousRotation = 0;
-        
-        if (navigator.vibrate) navigator.vibrate(50); 
-        updateUI();
-    });
-
-    // 5. 更新畫面與判斷解謎邏輯
-    function updateUI() {
-        // 算出 0~359 的直覺數字
-        let relativeAngle = Math.round((currentRawAngle - zeroOffset + 360) % 360);
-        
-        // 核心修正：計算最短旋轉路徑 (防止 0/360 暴衝)
-        let delta = relativeAngle - lastRelativeAngle;
-        
-        // 如果差距大於 180 度，代表跨越了 0/360 邊界，進行反向修正
-        if (delta > 180) {
-            delta -= 360; 
-        } else if (delta < -180) {
-            delta += 360; 
-        }
-        
-        // 將真正的物理位移量累加進去
-        continuousRotation += delta;
-        
-        // 存檔給下一次比較用
-        lastRelativeAngle = relativeAngle;
-        
-        // 畫面中央的數字依然顯示 0~359
-        angleText.innerText = relativeAngle + '°';
-        
-        // 羅盤外框的轉動改用「連續角度」，徹底解決亂跳
-        compassRing.style.transform = `rotate(${-continuousRotation}deg)`;
-
-        // 解謎判斷：目標轉向 90 度 (容錯 ±5 度)
-        if (relativeAngle >= 85 && relativeAngle <= 95) {
-            triggerSuccess();
-        }
-    }
-
-    // 6. 解謎成功觸發
-    function triggerSuccess() {
-        isUnlocked = true;
-        window.removeEventListener('deviceorientation', handleOrientation);
-        
-        if (navigator.vibrate) navigator.vibrate([200, 100, 200]); 
-
-        radarScreen.style.display = 'none';
-        successScreen.style.display = 'block';
-    }
-</script>
-
+    </script>
 </body>
 </html>
