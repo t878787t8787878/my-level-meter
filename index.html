@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>iPhone 日文 Flick 漸進特訓</title>
     <style>
-        /* 新增 position: fixed 與 overscroll-behavior 徹底鎖定畫面，防止 iOS 彈性滑動干擾 */
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #050510; color: white; 
@@ -39,12 +38,15 @@
         #word-container {
             position: relative; display: flex; flex-direction: column; align-items: center;
             z-index: 10; transform-origin: center center;
-            /* 移除原本的 CSS 逼近動畫，現在由 JS 高幀率同步驅動 */
             transform: scale(0.1); opacity: 0; 
             will-change: transform, opacity, filter;
         }
 
-        #kanji-display { font-size: 1.8rem; color: #888; margin-bottom: 15px; text-shadow: 2px 2px 4px #000; }
+        /* 確保碎裂時各個字元可以獨立變形 */
+        #kanji-display { 
+            font-size: 1.8rem; color: #888; margin-bottom: 15px; 
+            text-shadow: 2px 2px 4px #000; display: inline-block;
+        }
         #kana-display { display: flex; gap: 10px; }
 
         .char-col { display: flex; flex-direction: column; align-items: center; }
@@ -52,6 +54,7 @@
         .kana-char {
             font-size: 4rem; font-weight: bold; color: #fff; transition: color 0.1s, text-shadow 0.1s;
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.2), 3px 3px 6px #000;
+            display: inline-block;
         }
         .kana-char.correct { color: #00FF00; text-shadow: 0 0 20px #00FF00; }
         .kana-char.active { color: #00FFFF; text-shadow: 0 0 15px #00FFFF; border-bottom: 4px solid #00FFFF; }
@@ -59,6 +62,7 @@
         .romaji-char {
             font-size: 1.2rem; font-weight: bold; color: #666; margin-top: 5px;
             transition: color 0.1s, text-shadow 0.1s; font-family: monospace; letter-spacing: 1px;
+            display: inline-block;
         }
         .romaji-char.correct { color: #00FF00; text-shadow: 0 0 10px #00FF00; }
         .romaji-char.active { color: #00FFFF; text-shadow: 0 0 10px #00FFFF; }
@@ -212,7 +216,6 @@
         let matchCount = 0;
         let score = 0;
         
-        // 用來儲存當前題目要放大碰觸螢幕邊緣所需的完美倍率
         let calculatedTargetScale = 2;
 
         const hiddenInput = document.getElementById('hidden-input');
@@ -330,6 +333,7 @@
                 if (matchCount === targetKana.length) {
                     score++;
                     updateStats();
+                    // 等待最後一發雷射的 150ms 飛行動畫到達後，觸發全字碎裂
                     setTimeout(clearAndExplode, 150); 
                 } else {
                     updateFlickHint();
@@ -397,16 +401,29 @@
             };
         }
 
+        // 新增：物理級碎裂特效
         function clearAndExplode() {
             cancelAnimationFrame(animationFrameId);
-            const computedStyle = window.getComputedStyle(wordContainer);
-            const currentTransform = computedStyle.transform;
             
-            wordContainer.animate([
-                { transform: currentTransform, filter: 'brightness(2)', opacity: 1 },
-                { transform: `${currentTransform} scale(1.5)`, filter: 'brightness(1)', opacity: 0 }
-            ], { duration: 300, easing: 'ease-out', fill: 'forwards' });
+            // 抓取每一個獨立的字元區塊 (漢字、每一個假名、每一個羅馬拼音)
+            const parts = document.querySelectorAll('#kanji-display, .kana-char, .romaji-char');
             
+            parts.forEach(part => {
+                const angle = Math.random() * Math.PI * 2;
+                // 產生隨機的爆炸飛散距離
+                const dist = 60 + Math.random() * 150;
+                const tx = Math.cos(angle) * dist;
+                const ty = Math.sin(angle) * dist;
+                // 產生隨機翻轉角度
+                const rot = (Math.random() - 0.5) * 120;
+
+                part.animate([
+                    { transform: 'translate(0px, 0px) rotate(0deg) scale(1)', opacity: 1, filter: 'brightness(2)' },
+                    { transform: `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(1.3)`, opacity: 0, filter: 'brightness(1)' }
+                ], { duration: 350, easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)', fill: 'forwards' });
+            });
+            
+            // 附加原有的雷射高能量粒子爆炸
             const rect = wordContainer.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
@@ -417,10 +434,11 @@
                     Math.random() > 0.5 ? '#00FFFF' : '#00FF00', 1
                 );
             }
-            setTimeout(nextWord, 350);
+
+            // 等待碎裂動畫播完再進入下一題
+            setTimeout(nextWord, 400);
         }
 
-        // JS 高幀率同步引擎：確保文字大小 100% 精準對應剩餘時間
         function runTimer(currentTime) {
             if (!lastTime) lastTime = currentTime;
             let deltaTime = (currentTime - lastTime) / 1000;
@@ -428,25 +446,29 @@
 
             timeLeft -= deltaTime;
             
-            // 計算動畫進度 0.0 ~ 1.0 (0 是剛開始，1 是時間耗盡)
             let progress = 1 - (timeLeft / currentDuration);
             if (progress > 1) progress = 1;
             if (progress < 0) progress = 0;
 
-            // 根據進度嚴格計算當前大小，從 0.1 放大到碰觸螢幕邊緣的 calculatedTargetScale
-            let currentScale = 0.1 + (calculatedTargetScale - 0.1) * progress;
-            wordContainer.style.transform = `scale(${currentScale})`;
+            // 新增 1：Cubic Ease-Out，讓文字一開始以 3 次方的速率快速放大，後面才減速逼近
+            let easeProgress = 1 - Math.pow(1 - progress, 3);
+            let currentScale = 0.1 + (calculatedTargetScale - 0.1) * easeProgress;
             
-            // 動畫初始的快速淡入
-            wordContainer.style.opacity = Math.min(1, progress * 10);
-            
-            // 當進度超過 80%，文字會開始發出紅色危險警告光芒
-            if (progress > 0.8) {
-                let dangerIntensity = (progress - 0.8) * 5; // 0 到 1
-                wordContainer.style.filter = `drop-shadow(0 0 ${30 * dangerIntensity}px rgba(255,0,0,0.8))`;
+            // 新增 2：瀕死顫抖特效與強烈紅光警告
+            let shakeX = 0, shakeY = 0;
+            if (progress > 0.75) { 
+                // 最後 25% 開始啟動警告狀態
+                let intensity = (progress - 0.75) * 4; // intensity 會從 0 升至 1
+                shakeX = (Math.random() - 0.5) * 15 * intensity;
+                shakeY = (Math.random() - 0.5) * 15 * intensity;
+                wordContainer.style.filter = `drop-shadow(0 0 ${30 * intensity}px rgba(255,0,0,0.8))`;
             } else {
                 wordContainer.style.filter = `none`;
             }
+
+            wordContainer.style.transform = `scale(${currentScale}) translate(${shakeX}px, ${shakeY}px)`;
+            // 開頭淡入也配合 easeProgress 加速出現
+            wordContainer.style.opacity = Math.min(1, easeProgress * 5); 
 
             updateTimerBar();
 
@@ -466,11 +488,21 @@
         }
 
         function nextWord() {
-            // 強制清除殘留的爆炸動畫屬性
+            // 清除上一題文字的殘留碎裂動畫，歸零所有狀態
+            const kanjiDisplay = document.getElementById('kanji-display');
+            if (typeof kanjiDisplay.getAnimations === 'function') {
+                kanjiDisplay.getAnimations().forEach(anim => anim.cancel());
+            }
+            kanjiDisplay.style.transform = ''; 
+            kanjiDisplay.style.opacity = '';
+            
             if (typeof wordContainer.getAnimations === 'function') {
                 wordContainer.getAnimations().forEach(anim => anim.cancel());
             }
-            
+            wordContainer.style.transform = 'scale(1) translate(0, 0)';
+            wordContainer.style.opacity = '0';
+            wordContainer.style.filter = 'none';
+
             hiddenInput.value = ''; matchCount = 0;
             hiddenInput.focus();
 
@@ -478,7 +510,7 @@
             const word = vocabulary[currentWordIndex];
             targetKana = word.reading;
 
-            document.getElementById('kanji-display').textContent = word.kanji;
+            kanjiDisplay.textContent = word.kanji;
             
             kanaDisplay.innerHTML = targetKana.split('').map((c, i) => {
                 const hint = flickMap[toHiragana(c)] || { romaji: '?' };
@@ -491,23 +523,17 @@
 
             updateFlickHint();
 
-            // 將容器重置為初始狀態以測量原始寬度
-            wordContainer.style.transform = 'scale(1)';
-            wordContainer.style.opacity = '0';
-            void wordContainer.offsetWidth; // 觸發重繪
+            void wordContainer.offsetWidth; 
             
-            // 計算碰到螢幕兩端所需的精確倍率
             let baseWidth = wordContainer.offsetWidth;
-            let maxWidth = window.innerWidth * 0.95; // 留 5% 的極小呼吸空間，避免直接貼緊硬邊
+            let maxWidth = window.innerWidth * 0.95; 
             
             if (baseWidth > 0) {
-                // 解除最大放大限制，讓極短的單字也能完美放大到螢幕邊緣
                 calculatedTargetScale = maxWidth / baseWidth;
             } else {
                 calculatedTargetScale = 2;
             }
 
-            // 初始化動畫起點
             wordContainer.style.transform = `scale(0.1)`;
 
             timeLeft = currentDuration;
@@ -520,8 +546,6 @@
 
         function showAnswer() {
             cancelAnimationFrame(animationFrameId);
-            // 時間歸零時不需做任何動作，因為 JS 引擎已經將文字凍結在完美觸碰兩端的大小了
-            
             document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
             document.getElementById('final-score').textContent = `本次特訓擊破數：${score}`;
             answerOverlay.style.display = 'flex';
