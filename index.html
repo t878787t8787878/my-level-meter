@@ -3,8 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>日文 Flick 肌肉記憶特訓</title>
+    <title>iPhone 日文 Flick 漸進特訓</title>
     <style>
+        :root {
+            --duration: 20s; /* 動態控制逼近速度 */
+        }
         body {
             margin: 0; padding: 0; background-color: #050510;
             color: white; font-family: 'Arial', sans-serif;
@@ -18,7 +21,6 @@
             overflow: hidden;
         }
 
-        /* 3D 隧道背景 */
         #tunnel {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             perspective: 600px; z-index: -1;
@@ -34,17 +36,17 @@
         }
         @keyframes moveForward { from { background-position: 0 0; } to { background-position: 0 60px; } }
 
-        /* 題目容器 */
         #word-container {
             position: relative; display: flex; flex-direction: column; align-items: center;
-            transform-style: preserve-3d; margin-top: -50px;
+            transform-style: preserve-3d; margin-top: -80px;
         }
-        .approaching { animation: zoomIn 12s linear forwards; }
+        
+        .approaching { animation: zoomIn var(--duration) linear forwards; }
         @keyframes zoomIn {
             0% { transform: scale(0.1) translateY(-200px); opacity: 0; }
             5% { opacity: 1; }
-            95% { transform: scale(1.4) translateY(0px); opacity: 1; }
-            100% { transform: scale(1.6) translateY(50px); opacity: 0; }
+            95% { transform: scale(1.4) translateY(0px); opacity: 1; filter: drop-shadow(0 0 10px rgba(255,0,0,0)); }
+            100% { transform: scale(1.6) translateY(50px); opacity: 0; filter: drop-shadow(0 0 20px rgba(255,0,0,0.8)); }
         }
         .exploding { animation: explode 0.3s ease-out forwards; }
         @keyframes explode {
@@ -53,7 +55,7 @@
         }
 
         #kanji-display { font-size: 1.8rem; color: #888; margin-bottom: 10px; }
-        #kana-display { font-size: 4.5rem; font-weight: bold; color: #fff; display: flex; gap: 8px; }
+        #kana-display { font-size: 4rem; font-weight: bold; color: #fff; display: flex; gap: 8px; }
 
         .kana-char {
             display: inline-block; transition: all 0.2s;
@@ -62,42 +64,55 @@
         .kana-char.correct { color: #00FF00; text-shadow: 0 0 20px #00FF00; transform: scale(1.1); }
         .kana-char.active { color: #00FFFF; text-shadow: 0 0 15px #00FFFF; border-bottom: 4px solid #00FFFF; }
 
-        /* Flick 指引面板 */
+        /* iPhone 專屬 Flick 指引面板 */
         #flick-hint-panel {
-            position: absolute; bottom: 20px;
-            width: 90%; max-width: 350px;
-            background: rgba(0, 20, 40, 0.8);
-            border: 2px solid #00FFFF; border-radius: 15px;
-            padding: 15px; display: flex; align-items: center;
-            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
-            z-index: 60;
+            position: absolute; bottom: 15px;
+            width: 92%; max-width: 380px;
+            background: rgba(10, 20, 30, 0.85);
+            border: 2px solid #00FFFF; border-radius: 12px;
+            padding: 12px; display: flex; align-items: center;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2);
+            z-index: 60; backdrop-filter: blur(5px);
         }
 
         #flick-key-icon {
-            width: 60px; height: 60px;
-            background: #111; border: 2px solid #fff; border-radius: 8px;
+            width: 70px; height: 70px;
+            background: #222; border: 2px solid #aaa; border-radius: 10px;
             display: flex; justify-content: center; align-items: center;
-            font-size: 1.8rem; font-weight: bold; margin-right: 20px;
-            position: relative;
+            font-size: 2rem; font-weight: bold; margin-right: 15px;
+            position: relative; flex-shrink: 0;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
         }
 
-        /* 箭頭指示 */
         .arrow {
-            position: absolute; font-size: 1.5rem; color: #555;
+            position: absolute; font-size: 1.2rem; color: #444;
             transition: color 0.2s, transform 0.2s;
         }
-        .arrow.active-arrow { color: #FFD700; transform: scale(1.5); text-shadow: 0 0 10px #FFD700; }
-        .arrow-up { top: -25px; } .arrow-down { bottom: -25px; }
-        .arrow-left { left: -25px; } .arrow-right { right: -25px; }
+        .arrow.active-arrow { color: #00FFFF; transform: scale(1.4); text-shadow: 0 0 8px #00FFFF; }
+        .arrow-up { top: -20px; } .arrow-down { bottom: -20px; }
+        .arrow-left { left: -20px; } .arrow-right { right: -20px; }
 
-        #flick-text-hint { flex: 1; font-size: 1.2rem; line-height: 1.4; }
-        #flick-text-hint b { color: #FFD700; font-size: 1.5rem; }
+        #hint-details { flex: 1; display: flex; flex-direction: column; justify-content: center; }
+        
+        .hint-row-1 { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px; border-bottom: 1px solid #444; padding-bottom: 5px;}
+        #hint-romaji { font-size: 1.6rem; font-weight: bold; color: #FFD700; letter-spacing: 2px;}
+        #hint-grid-pos { font-size: 1rem; color: #aaa; background: #333; padding: 3px 8px; border-radius: 4px; }
+        
+        .hint-row-2 { font-size: 1.1rem; line-height: 1.4; color: #ddd; }
+        .highlight { color: #00FFFF; font-weight: bold; }
 
-        /* 其他 UI */
+        /* 遊戲資訊 UI */
+        #game-stats {
+            position: absolute; top: 15px; right: 20px;
+            text-align: right; z-index: 50;
+        }
+        #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
+        #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
+
         .bullet {
             position: fixed; z-index: 50; font-size: 2.5rem; color: #00FFFF;
             text-shadow: 0 0 15px #00FFFF; pointer-events: none;
-            transform: translate(-50%, -50%); transition: all 0.15s ease-in;
+            transform: translate(-50%, -50%); transition: all 0.1s ease-in;
         }
 
         @keyframes shake {
@@ -115,11 +130,12 @@
         .overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(5,5,15,0.95); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 100; padding: 30px;
+            justify-content: center; align-items: center; z-index: 100; padding: 30px; text-align: center;
         }
         button {
             padding: 15px 40px; font-size: 1.4rem; border: 2px solid #00FFFF; border-radius: 50px;
-            background: transparent; color: #00FFFF; font-weight: bold; cursor: pointer;
+            background: rgba(0,255,255,0.1); color: #00FFFF; font-weight: bold; cursor: pointer;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -130,6 +146,11 @@
     <div id="visual-viewport-container">
         <div id="tunnel"><div class="tunnel-grid"></div></div>
         <div id="timer-bar-container"><div id="timer-bar"></div></div>
+        
+        <div id="game-stats">
+            <div id="score-display">擊破數: 0</div>
+            <div id="speed-display">極限倒數: 20s</div>
+        </div>
 
         <div id="word-container">
             <div id="kanji-display">--</div>
@@ -144,69 +165,117 @@
                 <span class="arrow arrow-left">◀</span>
                 <span class="arrow arrow-right">▶</span>
             </div>
-            <div id="flick-text-hint">
-                請按住 <b id="hint-key">あ</b><br>往 <b id="hint-dir">中心</b> 滑動
+            <div id="hint-details">
+                <div class="hint-row-1">
+                    <span id="hint-romaji">a</span>
+                    <span id="hint-grid-pos">左上第一格</span>
+                </div>
+                <div class="hint-row-2" id="hint-action">
+                    按住 <span class="highlight">あ</span> 往 <span class="highlight">中心</span>
+                </div>
             </div>
         </div>
     </div>
 
     <div id="start-overlay" class="overlay">
-        <h1 style="color:#00FFFF">Flick 肌肉記憶特訓</h1>
-        <p style="text-align:center; line-height:1.6">請使用手機的「日文九宮格鍵盤」。<br>觀察下方的指引面板，<br>在單字撞上你之前擊破它們！</p>
-        <button onclick="initGame()">啟動系統</button>
+        <h1 style="color:#00FFFF">iPhone 肌肉記憶特訓</h1>
+        <p style="line-height:1.6; color:#ccc;">
+            請切換至「日文-假名輸入」鍵盤。<br>
+            起步時間為 20 秒，<br>
+            擊破越多，速度越快！<br>
+            <span style="color:#FFD700; font-size:0.9rem;">(已為您過濾掉需要切換按鍵的濁音與小字)</span>
+        </p>
+        <button onclick="initGame()">啟動特訓引擎</button>
     </div>
 
     <div id="answer-overlay" class="overlay" style="display:none">
-        <h1 style="color:#ff4444">撞擊！護盾受損</h1>
-        <p id="answer-detail" style="font-size:1.5rem"></p>
-        <button onclick="nextWord()">修復並繼續</button>
+        <h1 style="color:#ff4444">護盾受損！</h1>
+        <p id="answer-detail" style="font-size:1.5rem; margin-bottom: 10px;"></p>
+        <p id="final-score" style="color:#FFD700; font-size:1.2rem;"></p>
+        <button onclick="resetGame()">重新挑戰</button>
     </div>
 
     <script>
-        // Flick 鍵盤映射表 (平假名與片假名通用)
+        // iPhone 日文鍵盤完整對應表 (包含羅馬拼音與九宮格實體位置)
         const flickMap = {
-            'あ': { key: 'あ', dir: '中心', arrow: '' }, 'い': { key: 'あ', dir: '左', arrow: 'left' }, 'う': { key: 'あ', dir: '上', arrow: 'up' }, 'え': { key: 'あ', dir: '右', arrow: 'right' }, 'お': { key: 'あ', dir: '下', arrow: 'down' },
-            'か': { key: 'か', dir: '中心', arrow: '' }, 'き': { key: 'か', dir: '左', arrow: 'left' }, 'く': { key: 'か', dir: '上', arrow: 'up' }, 'け': { key: 'か', dir: '右', arrow: 'right' }, 'こ': { key: 'か', dir: '下', arrow: 'down' },
-            'さ': { key: 'さ', dir: '中心', arrow: '' }, 'し': { key: 'さ', dir: '左', arrow: 'left' }, 'す': { key: 'さ', dir: '上', arrow: 'up' }, 'せ': { key: 'さ', dir: '右', arrow: 'right' }, 'そ': { key: 'さ', dir: '下', arrow: 'down' },
-            'た': { key: 'た', dir: '中心', arrow: '' }, 'ち': { key: 'た', dir: '左', arrow: 'left' }, 'つ': { key: 'た', dir: '上', arrow: 'up' }, 'て': { key: 'た', dir: '右', arrow: 'right' }, 'と': { key: 'た', dir: '下', arrow: 'down' },
-            'な': { key: 'な', dir: '中心', arrow: '' }, 'に': { key: 'な', dir: '左', arrow: 'left' }, 'ぬ': { key: 'な', dir: '上', arrow: 'up' }, 'ね': { key: 'な', dir: '右', arrow: 'right' }, 'の': { key: 'な', dir: '下', arrow: 'down' },
-            'は': { key: 'は', dir: '中心', arrow: '' }, 'ひ': { key: 'は', dir: '左', arrow: 'left' }, 'ふ': { key: 'は', dir: '上', arrow: 'up' }, 'へ': { key: 'は', dir: '右', arrow: 'right' }, 'ほ': { key: 'は', dir: '下', arrow: 'down' },
-            'ま': { key: 'ま', dir: '中心', arrow: '' }, 'み': { key: 'ま', dir: '左', arrow: 'left' }, 'む': { key: 'ま', dir: '上', arrow: 'up' }, 'め': { key: 'ま', dir: '右', arrow: 'right' }, 'も': { key: 'ま', dir: '下', arrow: 'down' },
-            'や': { key: 'や', dir: '中心', arrow: '' }, 'ゆ': { key: 'や', dir: '上', arrow: 'up' }, 'よ': { key: 'や', dir: '下', arrow: 'down' },
-            'ら': { key: 'ら', dir: '中心', arrow: '' }, 'り': { key: 'ら', dir: '左', arrow: 'left' }, 'る': { key: 'ら', dir: '上', arrow: 'up' }, 'れ': { key: 'ら', dir: '右', arrow: 'right' }, 'ろ': { key: 'ら', dir: '下', arrow: 'down' },
-            'わ': { key: 'わ', dir: '中心', arrow: '' }, 'を': { key: 'わ', dir: '左', arrow: 'left' }, 'ん': { key: 'わ', dir: '上', arrow: 'up' },
-            'ー': { key: 'わ', dir: '右', arrow: 'right' },
-            // 濁音處理：導向其母音按鍵
-            'が': { key: 'か', dir: '中心', arrow: '' }, 'ぎ': { key: 'か', dir: '左', arrow: 'left' }, 'ぐ': { key: 'か', dir: '上', arrow: 'up' }, 'げ': { key: 'か', dir: '右', arrow: 'right' }, 'ご': { key: 'か', dir: '下', arrow: 'down' },
-            'ざ': { key: 'さ', dir: '中心', arrow: '' }, 'じ': { key: 'さ', dir: '左', arrow: 'left' }, 'ず': { key: 'さ', dir: '上', arrow: 'up' }, 'ぜ': { key: 'さ', dir: '右', arrow: 'right' }, 'ぞ': { key: 'さ', dir: '下', arrow: 'down' },
-            'だ': { key: 'た', dir: '中心', arrow: '' }, 'ぢ': { key: 'た', dir: '左', arrow: 'left' }, 'づ': { key: 'た', dir: '上', arrow: 'up' }, 'で': { key: 'た', dir: '右', arrow: 'right' }, 'ど': { key: 'た', dir: '下', arrow: 'down' },
-            'ば': { key: 'は', dir: '中心', arrow: '' }, 'び': { key: 'は', dir: '左', arrow: 'left' }, 'ぶ': { key: 'は', dir: '上', arrow: 'up' }, 'べ': { key: 'は', dir: '右', arrow: 'right' }, 'ぼ': { key: 'は', dir: '下', arrow: 'down' },
-            'ぱ': { key: 'は', dir: '中心', arrow: '' }, 'ぴ': { key: 'は', dir: '左', arrow: 'left' }, 'ぷ': { key: 'は', dir: '上', arrow: 'up' }, 'ぺ': { key: 'は', dir: '右', arrow: 'right' }, 'ぽ': { key: 'は', dir: '下', arrow: 'down' }
+            // Row 1
+            'あ': { key: 'あ', dir: '點擊 (中心)', arrow: '', romaji: 'a', grid: '左上格' }, 
+            'い': { key: 'あ', dir: '左滑', arrow: 'left', romaji: 'i', grid: '左上格' }, 
+            'う': { key: 'あ', dir: '上滑', arrow: 'up', romaji: 'u', grid: '左上格' }, 
+            'え': { key: 'あ', dir: '右滑', arrow: 'right', romaji: 'e', grid: '左上格' }, 
+            'お': { key: 'あ', dir: '下滑', arrow: 'down', romaji: 'o', grid: '左上格' },
+            'か': { key: 'か', dir: '點擊 (中心)', arrow: '', romaji: 'ka', grid: '中上格' }, 
+            'き': { key: 'か', dir: '左滑', arrow: 'left', romaji: 'ki', grid: '中上格' }, 
+            'く': { key: 'か', dir: '上滑', arrow: 'up', romaji: 'ku', grid: '中上格' }, 
+            'け': { key: 'か', dir: '右滑', arrow: 'right', romaji: 'ke', grid: '中上格' }, 
+            'こ': { key: 'か', dir: '下滑', arrow: 'down', romaji: 'ko', grid: '中上格' },
+            'さ': { key: 'さ', dir: '點擊 (中心)', arrow: '', romaji: 'sa', grid: '右上格' }, 
+            'し': { key: 'さ', dir: '左滑', arrow: 'left', romaji: 'shi', grid: '右上格' }, 
+            'す': { key: 'さ', dir: '上滑', arrow: 'up', romaji: 'su', grid: '右上格' }, 
+            'せ': { key: 'さ', dir: '右滑', arrow: 'right', romaji: 'se', grid: '右上格' }, 
+            'そ': { key: 'さ', dir: '下滑', arrow: 'down', romaji: 'so', grid: '右上格' },
+            // Row 2
+            'た': { key: 'た', dir: '點擊 (中心)', arrow: '', romaji: 'ta', grid: '左中格' }, 
+            'ち': { key: 'た', dir: '左滑', arrow: 'left', romaji: 'chi', grid: '左中格' }, 
+            'つ': { key: 'た', dir: '上滑', arrow: 'up', romaji: 'tsu', grid: '左中格' }, 
+            'て': { key: 'た', dir: '右滑', arrow: 'right', romaji: 'te', grid: '左中格' }, 
+            'と': { key: 'た', dir: '下滑', arrow: 'down', romaji: 'to', grid: '左中格' },
+            'な': { key: 'な', dir: '點擊 (中心)', arrow: '', romaji: 'na', grid: '正中格' }, 
+            'に': { key: 'な', dir: '左滑', arrow: 'left', romaji: 'ni', grid: '正中格' }, 
+            'ぬ': { key: 'な', dir: '上滑', arrow: 'up', romaji: 'nu', grid: '正中格' }, 
+            'ね': { key: 'な', dir: '右滑', arrow: 'right', romaji: 'ne', grid: '正中格' }, 
+            'の': { key: 'な', dir: '下滑', arrow: 'down', romaji: 'no', grid: '正中格' },
+            'は': { key: 'は', dir: '點擊 (中心)', arrow: '', romaji: 'ha', grid: '右中格' }, 
+            'ひ': { key: 'は', dir: '左滑', arrow: 'left', romaji: 'hi', grid: '右中格' }, 
+            'ふ': { key: 'は', dir: '上滑', arrow: 'up', romaji: 'fu', grid: '右中格' }, 
+            'へ': { key: 'は', dir: '右滑', arrow: 'right', romaji: 'he', grid: '右中格' }, 
+            'ほ': { key: 'は', dir: '下滑', arrow: 'down', romaji: 'ho', grid: '右中格' },
+            // Row 3
+            'ま': { key: 'ま', dir: '點擊 (中心)', arrow: '', romaji: 'ma', grid: '左下格' }, 
+            'み': { key: 'ま', dir: '左滑', arrow: 'left', romaji: 'mi', grid: '左下格' }, 
+            'む': { key: 'ま', dir: '上滑', arrow: 'up', romaji: 'mu', grid: '左下格' }, 
+            'め': { key: 'ま', dir: '右滑', arrow: 'right', romaji: 'me', grid: '左下格' }, 
+            'も': { key: 'ま', dir: '下滑', arrow: 'down', romaji: 'mo', grid: '左下格' },
+            'や': { key: 'や', dir: '點擊 (中心)', arrow: '', romaji: 'ya', grid: '中下格' }, 
+            'ゆ': { key: 'や', dir: '上滑', arrow: 'up', romaji: 'yu', grid: '中下格' }, 
+            'よ': { key: 'や', dir: '下滑', arrow: 'down', romaji: 'yo', grid: '中下格' }, // iOS標準よ是下滑或右滑
+            'ら': { key: 'ら', dir: '點擊 (中心)', arrow: '', romaji: 'ra', grid: '右下格' }, 
+            'り': { key: 'ら', dir: '左滑', arrow: 'left', romaji: 'ri', grid: '右下格' }, 
+            'る': { key: 'ら', dir: '上滑', arrow: 'up', romaji: 'ru', grid: '右下格' }, 
+            'れ': { key: 'ら', dir: '右滑', arrow: 'right', romaji: 're', grid: '右下格' }, 
+            'ろ': { key: 'ら', dir: '下滑', arrow: 'down', romaji: 'ro', grid: '右下格' },
+            // Row 4
+            'わ': { key: 'わ', dir: '點擊 (中心)', arrow: '', romaji: 'wa', grid: '底排中格' }, 
+            'を': { key: 'わ', dir: '左滑', arrow: 'left', romaji: 'wo', grid: '底排中格' }, 
+            'ん': { key: 'わ', dir: '上滑', arrow: 'up', romaji: 'n', grid: '底排中格' },
+            'ー': { key: 'わ', dir: '右滑', arrow: 'right', romaji: '-', grid: '底排中格' }
         };
 
-        // 大量短單字題庫
+        // 純清音與長音題庫 (無濁音、無促音，專注九宮格定位)
         const vocabulary = [
             { kanji: "壽司", reading: "すし" }, { kanji: "拉麵", reading: "らーめん" }, { kanji: "車站", reading: "えき" },
-            { kanji: "地下鐵", reading: "ちかてつ" }, { kanji: "地圖", reading: "ちず" }, { kanji: "藥妝店", reading: "くすり" },
-            { kanji: "行李", reading: "にもつ" }, { kanji: "飯店", reading: "ほてる" }, { kanji: "滑雪", reading: "すきー" },
-            { kanji: "東京", reading: "とうきょう" }, { kanji: "燒肉", reading: "やきにく" }, { kanji: "便利商店", reading: "こんびに" },
-            { kanji: "相機", reading: "かめら" }, { kanji: "雨傘", reading: "かさ" }, { kanji: "出口", reading: "でぐち" },
-            { kanji: "入口", reading: "いりぐち" }, { kanji: "改札口", reading: "かいさつ" }, { kanji: "硬幣", reading: "こいん" },
-            { kanji: "廁所", reading: "といれ" }, { kanji: "秘密", reading: "ひみつ" }, { kanji: "暗號", reading: "あんごう" }
+            { kanji: "地下鐵", reading: "ちかてつ" }, { kanji: "藥", reading: "くすり" }, { kanji: "行李", reading: "にもつ" }, 
+            { kanji: "飯店", reading: "ほてる" }, { kanji: "滑雪", reading: "すきー" }, { kanji: "東京", reading: "とうきょう" },
+            { kanji: "肉", reading: "にく" }, { kanji: "相機", reading: "かめら" }, { kanji: "雨傘", reading: "かさ" },
+            { kanji: "秋", reading: "あき" }, { kanji: "切符", reading: "きっぷ" }, { kanji: "春天", reading: "はる" },
+            { kanji: "夏天", reading: "なつ" }, { kanji: "冬天", reading: "ふゆ" }, { kanji: "早安", reading: "おはよう" },
+            { kanji: "機票", reading: "ちけっと" }, { kanji: "貓", reading: "ねこ" }, { kanji: "狗", reading: "いぬ" },
+            { kanji: "秘密", reading: "ひみつ" }, { kanji: "寺廟", reading: "てら" }, { kanji: "橋", reading: "はし" }
         ];
 
         let currentWordIndex = -1;
         let timerInterval;
-        let timeLeft = 12;
+        let currentDuration = 20; // 初始 20 秒
+        let timeLeft = 20;
         let targetKana = "";
         let matchCount = 0;
+        let score = 0;
 
         const hiddenInput = document.getElementById('hidden-input');
         const vpContainer = document.getElementById('visual-viewport-container');
         const kanaDisplay = document.getElementById('kana-display');
         const keyMainChar = document.getElementById('key-main-char');
-        const hintKey = document.getElementById('hint-key');
-        const hintDir = document.getElementById('hint-dir');
+        const rootStyles = document.documentElement;
 
         function resizeLayout() {
             if (window.visualViewport) {
@@ -222,59 +291,77 @@
 
         function initGame() {
             document.getElementById('start-overlay').style.display = 'none';
+            score = 0;
+            updateStats();
             hiddenInput.focus();
             nextWord();
         }
 
-        // 更新導航提示面板
+        function resetGame() {
+            document.getElementById('answer-overlay').style.display = 'none';
+            initGame();
+        }
+
+        function updateStats() {
+            document.getElementById('score-display').textContent = `擊破數: ${score}`;
+            
+            // 難度曲線：每答對 1 題，時間減少 0.5 秒，最低極限為 4 秒
+            currentDuration = Math.max(4, 20 - (score * 0.5));
+            document.getElementById('speed-display').textContent = `極限倒數: ${currentDuration.toFixed(1)}s`;
+            
+            // 更新 CSS 動畫變數
+            rootStyles.style.setProperty('--duration', currentDuration + 's');
+        }
+
         function updateFlickHint() {
             const char = targetKana[matchCount];
-            const hiraChar = toHiragana(char); // 轉換為平假名查找映射
-            const hint = flickMap[hiraChar] || { key: '?', dir: '未知', arrow: '' };
+            const hiraChar = toHiragana(char); 
+            // 如果遇到促音或無法對應的字，提供基本防呆
+            const hint = flickMap[hiraChar] || { key: '?', dir: '輸入', arrow: '', romaji: '?', grid: '未知' };
 
             keyMainChar.textContent = hint.key;
-            hintKey.textContent = hint.key;
-            hintDir.textContent = hint.dir;
+            document.getElementById('hint-romaji').textContent = hint.romaji.toUpperCase();
+            document.getElementById('hint-grid-pos').textContent = hint.grid;
+            
+            document.getElementById('hint-action').innerHTML = `
+                ${hint.dir.includes('點擊') ? '直接點擊' : '按住'} <span class="highlight" style="font-size:1.3rem">${hint.key}</span> 
+                往 <span class="highlight" style="font-size:1.3rem">${hint.dir.replace('滑', '')}</span>
+            `;
 
-            // 更新箭頭顏色
             document.querySelectorAll('.arrow').forEach(a => a.classList.remove('active-arrow'));
-            if (hint.arrow) {
-                document.querySelector(`.arrow-${hint.arrow}`).classList.add('active-arrow');
-            }
+            if (hint.arrow) document.querySelector(`.arrow-${hint.arrow}`).classList.add('active-arrow');
         }
 
         hiddenInput.addEventListener('input', function() {
             let inputVal = toHiragana(hiddenInput.value);
             
-            // 逐字比對
             if (inputVal.length > matchCount) {
                 let lastChar = inputVal[inputVal.length - 1];
                 let targetChar = toHiragana(targetKana[matchCount]);
 
-                if (lastChar === targetChar) {
-                    // 打對了：發射子彈
+                if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
+                    // 為了避免小字 っ 造成卡關，這版題庫已盡量避開，若真有遇到則寬鬆判定
                     fireBullet(targetKana[matchCount], matchCount);
                     matchCount++;
                     
-                    // 更新畫面的當前目標狀態
                     document.querySelectorAll('.kana-char').forEach((s, idx) => {
                         if (idx < matchCount) s.className = 'kana-char correct';
                         else if (idx === matchCount) s.className = 'kana-char active';
                     });
 
                     if (matchCount === targetKana.length) {
+                        score++;
+                        updateStats();
                         clearAndExplode();
                     } else {
                         updateFlickHint();
                     }
                 } else {
-                    // 打錯了：震動
                     const errorSpan = document.getElementById(`char-${matchCount}`);
                     errorSpan.classList.remove('shake');
                     void errorSpan.offsetWidth;
                     errorSpan.classList.add('shake');
                 }
-                // 始終保持 input value 為已匹配的部分，強制玩家重新輸入下一個字
                 hiddenInput.value = targetKana.substring(0, matchCount);
             }
         });
@@ -292,7 +379,7 @@
             bullet.style.left = (rect.left + rect.width/2) + 'px';
             bullet.style.top = (rect.top + rect.height/2) + 'px';
             bullet.style.opacity = '0';
-            setTimeout(() => bullet.remove(), 150);
+            setTimeout(() => bullet.remove(), 100);
         }
 
         function clearAndExplode() {
@@ -302,7 +389,6 @@
         }
 
         function nextWord() {
-            document.getElementById('answer-overlay').style.display = 'none';
             document.getElementById('word-container').className = 'approaching';
             hiddenInput.value = ''; matchCount = 0;
             hiddenInput.focus();
@@ -318,18 +404,18 @@
 
             updateFlickHint();
 
-            timeLeft = 12;
+            timeLeft = currentDuration;
             updateTimerBar();
             clearInterval(timerInterval);
             timerInterval = setInterval(() => {
-                timeLeft--;
+                timeLeft -= 0.1; // 更新頻率變快，計時條更平滑
                 updateTimerBar();
                 if (timeLeft <= 0) showAnswer();
-            }, 1000);
+            }, 100);
         }
 
         function updateTimerBar() {
-            const p = (timeLeft / 12) * 100;
+            const p = Math.max(0, (timeLeft / currentDuration) * 100);
             document.getElementById('timer-bar').style.width = p + '%';
             document.getElementById('timer-bar').style.backgroundColor = p < 30 ? '#ff4444' : '#00FF00';
         }
@@ -337,7 +423,8 @@
         function showAnswer() {
             clearInterval(timerInterval);
             document.getElementById('word-container').className = '';
-            document.getElementById('answer-detail').innerHTML = `正確讀音：<b style="color:#00FF00">${targetKana}</b>`;
+            document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
+            document.getElementById('final-score').textContent = `本次特訓擊破數：${score}`;
             document.getElementById('answer-overlay').style.display = 'flex';
             hiddenInput.blur();
         }
