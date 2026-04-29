@@ -48,12 +48,6 @@
             2% { opacity: 1; filter: drop-shadow(0 0 0px rgba(255,0,0,0)); }
             100% { transform: scale(var(--target-scale)); opacity: 1; filter: drop-shadow(0 0 30px rgba(255,0,0,0.8)); }
         }
-        
-        .exploding { animation: explode 0.3s ease-out forwards; }
-        @keyframes explode {
-            0% { transform: scale(var(--target-scale)); filter: brightness(2); opacity: 1; }
-            100% { transform: scale(calc(var(--target-scale) * 1.5)); filter: brightness(1); opacity: 0; }
-        }
 
         #kanji-display { font-size: 1.8rem; color: #888; margin-bottom: 15px; text-shadow: 2px 2px 4px #000; }
         #kana-display { display: flex; gap: 10px; }
@@ -76,7 +70,6 @@
         .romaji-char.correct { color: #00FF00; text-shadow: 0 0 10px #00FF00; }
         .romaji-char.active { color: #00FFFF; text-shadow: 0 0 10px #00FFFF; }
 
-        /* 更新：移至左下角的 HUD 面板 */
         #flick-key-icon {
             position: absolute; bottom: 25px; left: 25px;
             width: 80px; height: 80px;
@@ -155,7 +148,7 @@
 </head>
 <body>
 
-    <input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true">
 
     <div id="visual-viewport-container">
         <div id="tunnel"><div class="tunnel-grid"></div></div>
@@ -322,47 +315,52 @@
 
         hiddenInput.addEventListener('input', function() {
             let inputVal = toHiragana(hiddenInput.value);
+            if (inputVal.length === 0) return;
             
-            if (inputVal.length > matchCount) {
-                let lastChar = inputVal[inputVal.length - 1];
-                let targetChar = toHiragana(targetKana[matchCount]);
+            // 我們只專注於判斷使用者當下輸入的「最後一個字」
+            let lastChar = inputVal[inputVal.length - 1];
+            let targetChar = toHiragana(targetKana[matchCount]);
 
-                if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
-                    // 發射雷射子彈
-                    fireLaser(matchCount);
-                    matchCount++;
-                    
-                    document.querySelectorAll('.kana-char').forEach((s, idx) => {
-                        if (idx < matchCount) s.className = 'kana-char correct';
-                        else if (idx === matchCount) s.className = 'kana-char active';
-                        else s.className = 'kana-char';
-                    });
+            if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
+                // 發射雷射子彈
+                fireLaser(matchCount);
+                matchCount++;
+                
+                // 敲擊正確！立刻清空輸入框，斷絕 iOS 預測選字的上下文
+                hiddenInput.value = '';
+                
+                document.querySelectorAll('.kana-char').forEach((s, idx) => {
+                    if (idx < matchCount) s.className = 'kana-char correct';
+                    else if (idx === matchCount) s.className = 'kana-char active';
+                    else s.className = 'kana-char';
+                });
 
-                    document.querySelectorAll('.romaji-char').forEach((s, idx) => {
-                        if (idx < matchCount) s.className = 'romaji-char correct';
-                        else if (idx === matchCount) s.className = 'romaji-char active';
-                        else s.className = 'romaji-char';
-                    });
+                document.querySelectorAll('.romaji-char').forEach((s, idx) => {
+                    if (idx < matchCount) s.className = 'romaji-char correct';
+                    else if (idx === matchCount) s.className = 'romaji-char active';
+                    else s.className = 'romaji-char';
+                });
 
-                    if (matchCount === targetKana.length) {
-                        score++;
-                        updateStats();
-                        // 稍微延遲讓最後一發雷射打到後再引發全毀爆炸
-                        setTimeout(clearAndExplode, 150); 
-                    } else {
-                        updateFlickHint();
-                    }
+                if (matchCount === targetKana.length) {
+                    score++;
+                    updateStats();
+                    setTimeout(clearAndExplode, 150); 
                 } else {
-                    const errorSpan = document.getElementById(`char-${matchCount}`);
-                    errorSpan.classList.remove('shake');
-                    void errorSpan.offsetWidth;
-                    errorSpan.classList.add('shake');
+                    updateFlickHint();
                 }
-                hiddenInput.value = targetKana.substring(0, matchCount);
+            } else {
+                // 如果打錯，給予視覺回饋
+                const errorSpan = document.getElementById(`char-${matchCount}`);
+                errorSpan.classList.remove('shake');
+                void errorSpan.offsetWidth;
+                errorSpan.classList.add('shake');
+                
+                // 為了讓濁音/半濁音 (゛/゜) 可以作用，打錯時我們保留「最後敲擊的單一字元」
+                // 這樣就不會讓輸入框累積出無法辨識的亂碼或觸發選字
+                hiddenInput.value = lastChar;
             }
         });
 
-        // 動態生成碎片粒子特效
         function createParticles(x, y, color, count = 12) {
             for (let i = 0; i < count; i++) {
                 const p = document.createElement('div');
@@ -370,7 +368,6 @@
                 p.style.backgroundColor = color;
                 p.style.boxShadow = `0 0 8px ${color}`;
                 
-                // 隨機形狀 (圓形或方形碎片)
                 p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
                 
                 const size = 3 + Math.random() * 5;
@@ -382,11 +379,10 @@
                 document.body.appendChild(p);
 
                 const angle = Math.random() * Math.PI * 2;
-                const velocity = 50 + Math.random() * 120; // 爆炸擴散速度
+                const velocity = 50 + Math.random() * 120; 
                 const tx = Math.cos(angle) * velocity;
                 const ty = Math.sin(angle) * velocity;
 
-                // 利用 Web Animations API 處理順暢的粒子飛散
                 p.animate([
                     { transform: 'translate(-50%, -50%) rotate(0deg) scale(1)', opacity: 1 },
                     { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) rotate(${Math.random() * 360}deg) scale(0)`, opacity: 0 }
@@ -397,13 +393,11 @@
             }
         }
 
-        // 發射雷射光束
         function fireLaser(idx) {
             const bullet = document.createElement('div');
             bullet.className = 'bullet';
             
             const startY = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-            // 從畫面底部中央發射
             const startX = window.visualViewport ? window.visualViewport.width / 2 : window.innerWidth / 2;
             
             document.body.appendChild(bullet);
@@ -413,19 +407,17 @@
             const targetX = rect.left + rect.width / 2;
             const targetY = rect.top + rect.height / 2;
 
-            // 雷射飛行動畫
             const animation = bullet.animate([
                 { transform: `translate(-50%, -50%) scaleY(1)`, top: `${startY}px`, left: `${startX}px` },
                 { transform: `translate(-50%, -50%) scaleY(1.5)`, top: `${targetY}px`, left: `${targetX}px` }
             ], {
-                duration: 60, // 極快彈道
+                duration: 60,
                 easing: 'linear'
             });
 
-            // 擊中瞬間觸發爆炸與文字閃爍
             animation.onfinish = () => {
                 bullet.remove();
-                createParticles(targetX, targetY, '#00FF00', 15); // 綠色擊中火花
+                createParticles(targetX, targetY, '#00FF00', 15); 
                 
                 targetEl.animate([
                     { filter: 'brightness(3) drop-shadow(0 0 20px #00FF00)', transform: 'scale(1.4)' },
@@ -436,16 +428,29 @@
 
         function clearAndExplode() {
             clearInterval(timerInterval);
-            wordContainer.style.animationPlayState = 'running';
-            wordContainer.className = 'exploding';
             
-            // 單字全毀時產生大型爆炸特效
+            // 抓取容器目前的精確縮放與位置
+            const computedStyle = window.getComputedStyle(wordContainer);
+            const currentTransform = computedStyle.transform;
+            
+            // 瞬間停用逼近的 CSS 動畫，將文字「凍結」在原地
+            wordContainer.style.animation = 'none';
+            
+            // 從凍結的當下大小原地炸開並消失
+            wordContainer.animate([
+                { transform: currentTransform, filter: 'brightness(2)', opacity: 1 },
+                { transform: `${currentTransform} scale(1.5)`, filter: 'brightness(1)', opacity: 0 }
+            ], {
+                duration: 300,
+                easing: 'ease-out',
+                fill: 'forwards'
+            });
+            
             const rect = wordContainer.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
             
             for(let i = 0; i < 40; i++) {
-                // 混合青色與綠色的大量碎片
                 createParticles(
                     centerX + (Math.random() * 60 - 30), 
                     centerY + (Math.random() * 40 - 20), 
@@ -458,7 +463,8 @@
         }
 
         function nextWord() {
-            wordContainer.style.animationPlayState = 'running'; 
+            // 重置容器動畫狀態以便接受下一個單字
+            wordContainer.style.animation = '';
             wordContainer.className = '';
             
             hiddenInput.value = ''; matchCount = 0;
@@ -513,6 +519,7 @@
 
         function showAnswer() {
             clearInterval(timerInterval);
+            // 答錯時也將動畫凍住
             wordContainer.style.animationPlayState = 'paused'; 
             
             document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
