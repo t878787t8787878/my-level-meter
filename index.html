@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>iPhone 日文 Flick 漸進特訓</title>
     <style>
-        :root {
-            --duration: 20s;
-            --target-scale: 2; 
-        }
         /* 新增 position: fixed 與 overscroll-behavior 徹底鎖定畫面，防止 iOS 彈性滑動干擾 */
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
@@ -43,24 +39,18 @@
         #word-container {
             position: relative; display: flex; flex-direction: column; align-items: center;
             z-index: 10; transform-origin: center center;
-        }
-        
-        .approaching { animation: zoomIn var(--duration) linear forwards; }
-        @keyframes zoomIn {
-            0% { transform: scale(0.1); opacity: 0; }
-            2% { opacity: 1; filter: drop-shadow(0 0 0px rgba(255,0,0,0)); }
-            100% { transform: scale(var(--target-scale)); opacity: 1; filter: drop-shadow(0 0 30px rgba(255,0,0,0.8)); }
+            /* 移除原本的 CSS 逼近動畫，現在由 JS 高幀率同步驅動 */
+            transform: scale(0.1); opacity: 0; 
+            will-change: transform, opacity, filter;
         }
 
         #kanji-display { font-size: 1.8rem; color: #888; margin-bottom: 15px; text-shadow: 2px 2px 4px #000; }
         #kana-display { display: flex; gap: 10px; }
 
-        .char-col {
-            display: flex; flex-direction: column; align-items: center;
-        }
+        .char-col { display: flex; flex-direction: column; align-items: center; }
 
         .kana-char {
-            font-size: 4rem; font-weight: bold; color: #fff; transition: all 0.2s;
+            font-size: 4rem; font-weight: bold; color: #fff; transition: color 0.1s, text-shadow 0.1s;
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.2), 3px 3px 6px #000;
         }
         .kana-char.correct { color: #00FF00; text-shadow: 0 0 20px #00FF00; }
@@ -68,7 +58,7 @@
 
         .romaji-char {
             font-size: 1.2rem; font-weight: bold; color: #666; margin-top: 5px;
-            transition: all 0.2s; font-family: monospace; letter-spacing: 1px;
+            transition: color 0.1s, text-shadow 0.1s; font-family: monospace; letter-spacing: 1px;
         }
         .romaji-char.correct { color: #00FF00; text-shadow: 0 0 10px #00FF00; }
         .romaji-char.active { color: #00FFFF; text-shadow: 0 0 10px #00FFFF; }
@@ -82,31 +72,23 @@
             z-index: 60; backdrop-filter: blur(5px);
         }
 
-        #key-main-char {
-            font-size: 2.4rem; font-weight: bold; color: #fff; z-index: 2;
-        }
+        #key-main-char { font-size: 2.4rem; font-weight: bold; color: #fff; z-index: 2; }
 
         .arrow {
             position: absolute; font-size: 1.2rem; color: #444; font-weight: bold;
             transition: all 0.2s; font-family: 'Arial', sans-serif; z-index: 1;
         }
-        
         .arrow.active-arrow { color: #1E90FF; text-shadow: 0 0 10px #1E90FF; }
-        
         .arrow-up { top: 2px; left: 50%; transform: translateX(-50%); }
         .arrow-down { bottom: 2px; left: 50%; transform: translateX(-50%); }
         .arrow-left { left: 4px; top: 50%; transform: translateY(-50%); }
         .arrow-right { right: 4px; top: 50%; transform: translateY(-50%); }
-
         .arrow-up.active-arrow { transform: translateX(-50%) scale(1.3); }
         .arrow-down.active-arrow { transform: translateX(-50%) scale(1.3); }
         .arrow-left.active-arrow { transform: translateY(-50%) scale(1.3); }
         .arrow-right.active-arrow { transform: translateY(-50%) scale(1.3); }
 
-        #game-stats {
-            position: absolute; top: 15px; right: 20px;
-            text-align: right; z-index: 50;
-        }
+        #game-stats { position: absolute; top: 15px; right: 20px; text-align: right; z-index: 50; }
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
 
@@ -116,9 +98,7 @@
             background-color: #00FFFF; box-shadow: 0 0 15px #00FFFF, 0 0 5px #fff;
         }
 
-        .particle {
-            position: fixed; z-index: 80; pointer-events: none;
-        }
+        .particle { position: fixed; z-index: 80; pointer-events: none; }
 
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
@@ -128,7 +108,6 @@
         .shake { animation: shake 0.2s ease-in-out 2; }
 
         #timer-bar-container { position: absolute; top: 0; left: 0; width: 100%; height: 6px; background-color: #222; z-index: 20;}
-        /* 移除了 transition，因為現在我們透過 60fps 的 JS 動畫影格做到了完美的平滑同步 */
         #timer-bar { height: 100%; width: 100%; background-color: #00FF00; }
 
         #hidden-input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
@@ -143,8 +122,7 @@
 
         button {
             padding: 15px 40px; font-size: 1.4rem; border: 2px solid #00FFFF; border-radius: 50px;
-            background: rgba(0,255,255,0.1); color: #00FFFF; font-weight: bold; cursor: pointer;
-            margin-top: 20px;
+            background: rgba(0,255,255,0.1); color: #00FFFF; font-weight: bold; cursor: pointer; margin-top: 20px;
         }
     </style>
 </head>
@@ -185,8 +163,8 @@
         <h1 style="color:#00FFFF">iPhone 肌肉記憶特訓</h1>
         <p style="line-height:1.6; color:#ccc;">
             請手動切換至「日文-假名輸入」鍵盤。<br>
-            單字逼近的速度與倒數時間將完全同步。<br>
-            請在文字撞擊螢幕邊緣前將其擊碎！
+            當文字放大到撞擊螢幕邊緣即為防線被破。<br>
+            請在逼近前將其擊碎！
         </p>
         <button onclick="initGame()">啟動特訓引擎</button>
     </div>
@@ -225,9 +203,6 @@
             { kanji: "秘密", reading: "ひみつ" }, { kanji: "寺廟", reading: "てら" }, { kanji: "橋", reading: "はし" }
         ];
 
-        let currentWordIndex = -1;
-        
-        // 核心計時引擎更新為 requestAnimationFrame，告別飄移誤差
         let animationFrameId;
         let lastTime = 0;
         
@@ -236,13 +211,15 @@
         let targetKana = "";
         let matchCount = 0;
         let score = 0;
+        
+        // 用來儲存當前題目要放大碰觸螢幕邊緣所需的完美倍率
+        let calculatedTargetScale = 2;
 
         const hiddenInput = document.getElementById('hidden-input');
         const vpContainer = document.getElementById('visual-viewport-container');
         const kanaDisplay = document.getElementById('kana-display');
         const keyMainChar = document.getElementById('key-main-char');
         const wordContainer = document.getElementById('word-container');
-        const rootStyles = document.documentElement;
         
         const startOverlay = document.getElementById('start-overlay');
         const answerOverlay = document.getElementById('answer-overlay');
@@ -253,19 +230,16 @@
                 vpContainer.style.height = window.visualViewport.height + 'px';
                 vpContainer.style.top = window.visualViewport.offsetTop + 'px';
                 
-                // 動態判斷鍵盤狀態以暫停/恢復遊戲計時
                 if (window.visualViewport.height >= window.innerHeight * 0.85) {
                     if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none' && resumeOverlay.style.display !== 'flex') {
                         resumeOverlay.style.display = 'flex';
-                        cancelAnimationFrame(animationFrameId); // 暫停計時
-                        wordContainer.style.animationPlayState = 'paused';
+                        cancelAnimationFrame(animationFrameId); 
                     }
                 } else {
                     if (resumeOverlay.style.display === 'flex') {
                         resumeOverlay.style.display = 'none';
-                        lastTime = 0; // 重置時間戳記
-                        animationFrameId = requestAnimationFrame(runTimer); // 自動恢復計時
-                        wordContainer.style.animationPlayState = 'running';
+                        lastTime = 0; 
+                        animationFrameId = requestAnimationFrame(runTimer); 
                     }
                 }
             }
@@ -295,14 +269,12 @@
             hiddenInput.focus();
             lastTime = 0;
             animationFrameId = requestAnimationFrame(runTimer);
-            wordContainer.style.animationPlayState = 'running';
         }
 
         function updateStats() {
             document.getElementById('score-display').textContent = `擊破數: ${score}`;
             currentDuration = Math.max(4, 20 - (score * 0.5));
             document.getElementById('speed-display').textContent = `極限倒數: ${currentDuration.toFixed(1)}s`;
-            rootStyles.style.setProperty('--duration', currentDuration + 's');
         }
 
         function updateFlickHint() {
@@ -341,7 +313,7 @@
                 fireLaser(matchCount);
                 matchCount++;
                 
-                hiddenInput.value = ''; // 正確時清空
+                hiddenInput.value = ''; 
                 
                 document.querySelectorAll('.kana-char').forEach((s, idx) => {
                     if (idx < matchCount) s.className = 'kana-char correct';
@@ -368,8 +340,6 @@
                 void errorSpan.offsetWidth;
                 errorSpan.classList.add('shake');
                 
-                // 為了讓你能順利敲出濁音/半濁音 (゛/゜)，錯誤時我們必須保留你的輸入字元在底層
-                // 這也是為什麼 iOS 系統一定會觸發預測選字的根本原因。
                 hiddenInput.value = lastChar;
             }
         });
@@ -432,8 +402,6 @@
             const computedStyle = window.getComputedStyle(wordContainer);
             const currentTransform = computedStyle.transform;
             
-            wordContainer.style.animation = 'none';
-            
             wordContainer.animate([
                 { transform: currentTransform, filter: 'brightness(2)', opacity: 1 },
                 { transform: `${currentTransform} scale(1.5)`, filter: 'brightness(1)', opacity: 0 }
@@ -452,13 +420,34 @@
             setTimeout(nextWord, 350);
         }
 
-        // 精準的螢幕刷新率驅動計時器
+        // JS 高幀率同步引擎：確保文字大小 100% 精準對應剩餘時間
         function runTimer(currentTime) {
             if (!lastTime) lastTime = currentTime;
             let deltaTime = (currentTime - lastTime) / 1000;
             lastTime = currentTime;
 
             timeLeft -= deltaTime;
+            
+            // 計算動畫進度 0.0 ~ 1.0 (0 是剛開始，1 是時間耗盡)
+            let progress = 1 - (timeLeft / currentDuration);
+            if (progress > 1) progress = 1;
+            if (progress < 0) progress = 0;
+
+            // 根據進度嚴格計算當前大小，從 0.1 放大到碰觸螢幕邊緣的 calculatedTargetScale
+            let currentScale = 0.1 + (calculatedTargetScale - 0.1) * progress;
+            wordContainer.style.transform = `scale(${currentScale})`;
+            
+            // 動畫初始的快速淡入
+            wordContainer.style.opacity = Math.min(1, progress * 10);
+            
+            // 當進度超過 80%，文字會開始發出紅色危險警告光芒
+            if (progress > 0.8) {
+                let dangerIntensity = (progress - 0.8) * 5; // 0 到 1
+                wordContainer.style.filter = `drop-shadow(0 0 ${30 * dangerIntensity}px rgba(255,0,0,0.8))`;
+            } else {
+                wordContainer.style.filter = `none`;
+            }
+
             updateTimerBar();
 
             if (timeLeft <= 0) {
@@ -477,13 +466,10 @@
         }
 
         function nextWord() {
-            // 強制清除之前所有的 Web Animations 動畫殘留，避免 iOS Safari 渲染 Bug 導致文字消失
+            // 強制清除殘留的爆炸動畫屬性
             if (typeof wordContainer.getAnimations === 'function') {
                 wordContainer.getAnimations().forEach(anim => anim.cancel());
             }
-            
-            wordContainer.style.animation = 'none';
-            wordContainer.className = '';
             
             hiddenInput.value = ''; matchCount = 0;
             hiddenInput.focus();
@@ -505,15 +491,24 @@
 
             updateFlickHint();
 
-            void wordContainer.offsetWidth; 
+            // 將容器重置為初始狀態以測量原始寬度
+            wordContainer.style.transform = 'scale(1)';
+            wordContainer.style.opacity = '0';
+            void wordContainer.offsetWidth; // 觸發重繪
             
+            // 計算碰到螢幕兩端所需的精確倍率
             let baseWidth = wordContainer.offsetWidth;
-            let maxWidth = window.innerWidth * 0.95; 
-            let scaleFactor = baseWidth > 0 ? maxWidth / baseWidth : 1.5;
-            scaleFactor = Math.min(scaleFactor, 3.5); 
+            let maxWidth = window.innerWidth * 0.95; // 留 5% 的極小呼吸空間，避免直接貼緊硬邊
             
-            rootStyles.style.setProperty('--target-scale', scaleFactor);
-            wordContainer.className = 'approaching';
+            if (baseWidth > 0) {
+                // 解除最大放大限制，讓極短的單字也能完美放大到螢幕邊緣
+                calculatedTargetScale = maxWidth / baseWidth;
+            } else {
+                calculatedTargetScale = 2;
+            }
+
+            // 初始化動畫起點
+            wordContainer.style.transform = `scale(0.1)`;
 
             timeLeft = currentDuration;
             updateTimerBar();
@@ -525,7 +520,7 @@
 
         function showAnswer() {
             cancelAnimationFrame(animationFrameId);
-            wordContainer.style.animationPlayState = 'paused'; 
+            // 時間歸零時不需做任何動作，因為 JS 引擎已經將文字凍結在完美觸碰兩端的大小了
             
             document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
             document.getElementById('final-score').textContent = `本次特訓擊破數：${score}`;
