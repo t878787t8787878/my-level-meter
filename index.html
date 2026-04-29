@@ -166,8 +166,8 @@
         <h1 style="color:#00FFFF">iPhone 肌肉記憶特訓</h1>
         <p style="line-height:1.6; color:#ccc;">
             請手動切換至「日文-假名輸入」鍵盤。<br>
-            當文字放大到撞擊螢幕邊緣即為防線被破。<br>
-            請在逼近前將其擊碎！
+            單字長度會逐漸增加，速度每題加快 0.5 秒。<br>
+            極限反應時間：5.0 秒。請在逼近前將其擊碎！
         </p>
         <button onclick="initGame()">啟動特訓引擎</button>
     </div>
@@ -195,17 +195,60 @@
             'ゃ': { key: 'や', dir: '點擊', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', dir: '上滑', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', dir: '下滑', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', dir: '上滑', arrow: 'up', romaji: 'tsu' }
         };
 
-        const vocabulary = [
-            { kanji: "壽司", reading: "すし" }, { kanji: "拉麵", reading: "らーめん" }, { kanji: "車站", reading: "えき" },
-            { kanji: "地下鐵", reading: "ちかてつ" }, { kanji: "藥", reading: "くすり" }, { kanji: "行李", reading: "にもつ" }, 
-            { kanji: "飯店", reading: "ほてる" }, { kanji: "滑雪", reading: "すきー" }, { kanji: "東京", reading: "とうきょう" },
-            { kanji: "肉", reading: "にく" }, { kanji: "相機", reading: "かめら" }, { kanji: "雨傘", reading: "かさ" },
-            { kanji: "秋", reading: "あき" }, { kanji: "切符", reading: "きっぷ" }, { kanji: "春天", reading: "はる" },
-            { kanji: "夏天", reading: "なつ" }, { kanji: "冬天", reading: "ふゆ" }, { kanji: "早安", reading: "おはよう" },
-            { kanji: "機票", reading: "ちけっと" }, { kanji: "貓", reading: "ねこ" }, { kanji: "狗", reading: "いぬ" },
-            { kanji: "秘密", reading: "ひみつ" }, { kanji: "寺廟", reading: "てら" }, { kanji: "橋", reading: "はし" }
+        // 擴充至 120+ 個單字庫
+        let vocabulary = [
+            { kanji: "狗", reading: "いぬ" }, { kanji: "貓", reading: "ねこ" }, { kanji: "傘", reading: "かさ" },
+            { kanji: "肉", reading: "にく" }, { kanji: "車站", reading: "えき" }, { kanji: "秋天", reading: "あき" },
+            { kanji: "春天", reading: "はる" }, { kanji: "夏天", reading: "なつ" }, { kanji: "冬天", reading: "ふゆ" },
+            { kanji: "橋", reading: "はし" }, { kanji: "寺廟", reading: "てら" }, { kanji: "鞋子", reading: "くつ" },
+            { kanji: "紙/頭髮", reading: "かみ" }, { kanji: "雪", reading: "ゆき" }, { kanji: "雨", reading: "あめ" },
+            { kanji: "山", reading: "やま" }, { kanji: "河川", reading: "かわ" }, { kanji: "海", reading: "うみ" },
+            { kanji: "星星", reading: "ほし" }, { kanji: "天空", reading: "そら" }, { kanji: "月亮", reading: "つき" },
+            { kanji: "花", reading: "はな" }, { kanji: "鳥", reading: "とり" }, { kanji: "石頭", reading: "いし" },
+            { kanji: "線", reading: "いと" }, { kanji: "錢", reading: "かね" }, { kanji: "臉", reading: "かお" },
+            { kanji: "嘴巴", reading: "くち" }, { kanji: "耳朵", reading: "みみ" }, { kanji: "腳", reading: "あし" },
+            { kanji: "牛", reading: "うし" }, { kanji: "豬", reading: "ぶた" }, { kanji: "馬", reading: "うま" },
+            { kanji: "魚", reading: "さかな" }, { kanji: "水", reading: "みず" }, { kanji: "酒", reading: "さけ" },
+            { kanji: "書", reading: "ほん" }, { kanji: "家", reading: "いえ" }, { kanji: "房間", reading: "へや" },
+            
+            { kanji: "相機", reading: "かめら" }, { kanji: "藥", reading: "くすり" }, { kanji: "飯店", reading: "ほてる" },
+            { kanji: "滑雪", reading: "すきー" }, { kanji: "行李", reading: "にもつ" }, { kanji: "車票", reading: "きっぷ" },
+            { kanji: "秘密", reading: "ひみつ" }, { kanji: "櫻花", reading: "さくら" }, { kanji: "汽車", reading: "くるま" },
+            { kanji: "香菸", reading: "たばこ" }, { kanji: "包包", reading: "かばん" }, { kanji: "錢包", reading: "さいふ" },
+            { kanji: "時鐘", reading: "とけい" }, { kanji: "眼鏡", reading: "めがね" }, { kanji: "帽子", reading: "ぼうし" },
+            { kanji: "襯衫", reading: "しゃつ" }, { kanji: "蘋果", reading: "りんご" }, { kanji: "橘子", reading: "みかん" },
+            { kanji: "香蕉", reading: "ばなな" }, { kanji: "草莓", reading: "いちご" }, { kanji: "西瓜", reading: "すいか" },
+            { kanji: "雞蛋", reading: "たまご" }, { kanji: "綠茶", reading: "おちゃ" }, { kanji: "壽司", reading: "すし" },
+            { kanji: "狐狸", reading: "きつね" }, { kanji: "狸貓", reading: "たぬき" }, { kanji: "老鼠", reading: "ねずみ" },
+            { kanji: "雲", reading: "くも" }, { kanji: "風", reading: "かぜ" }, { kanji: "白飯", reading: "ごはん" },
+            { kanji: "麵包", reading: "ぱん" }, { kanji: "朋友", reading: "ともだち" }, { kanji: "頭", reading: "あたま" },
+            { kanji: "大", reading: "おおきい" }, { kanji: "小", reading: "ちいさい" }, { kanji: "高/貴", reading: "たかい" },
+            { kanji: "便宜", reading: "やすい" }, { kanji: "熱", reading: "あつい" }, { kanji: "冷", reading: "さむい" },
+
+            { kanji: "拉麵", reading: "らーめん" }, { kanji: "地下鐵", reading: "ちかてつ" }, { kanji: "東京", reading: "とうきょう" },
+            { kanji: "飯糰", reading: "おにぎり" }, { kanji: "烤鳥肉串", reading: "やきとり" }, { kanji: "鉛筆", reading: "えんぴつ" },
+            { kanji: "橡皮擦", reading: "けしごむ" }, { kanji: "電腦", reading: "ぱそこん" }, { kanji: "手機", reading: "けいたい" },
+            { kanji: "老師", reading: "せんせい" }, { kanji: "學生", reading: "がくせい" }, { kanji: "大學", reading: "だいがく" },
+            { kanji: "郵局", reading: "ゆうびん" }, { kanji: "飛機", reading: "ひこうき" }, { kanji: "電風扇", reading: "せんぷう" },
+            { kanji: "冰箱", reading: "れいぞう" }, { kanji: "洗衣服", reading: "せんたく" }, { kanji: "吸塵器", reading: "そうじき" },
+            { kanji: "太陽", reading: "たいよう" }, { kanji: "打雷", reading: "かみなり" }, { kanji: "烤肉", reading: "やきにく" },
+            { kanji: "生魚片", reading: "さしみ" }, { kanji: "天婦羅", reading: "てんぷら" }, { kanji: "牛丼", reading: "ぎゅうどん" },
+            { kanji: "水果", reading: "くだもの" }, { kanji: "葡萄", reading: "ぶどう" }, { kanji: "大阪", reading: "おおさか" },
+            { kanji: "京都", reading: "きょうと" }, { kanji: "學校", reading: "がっこう" }, { kanji: "銀行", reading: "ぎんこう" },
+            { kanji: "公園", reading: "こうえん" }, { kanji: "神社", reading: "じんじゃ" }, { kanji: "電車", reading: "でんしゃ" },
+            { kanji: "椅子", reading: "いす" }, { kanji: "桌子", reading: "つくえ" }, { kanji: "字典", reading: "じしょ" },
+            { kanji: "報紙", reading: "しんぶん" }, { kanji: "雜誌", reading: "ざっし" }, { kanji: "鑰匙", reading: "かぎ" },
+
+            { kanji: "早安", reading: "おはよう" }, { kanji: "謝謝", reading: "ありがとう" }, { kanji: "對不起", reading: "すみません" },
+            { kanji: "我開動了", reading: "いただきます" }, { kanji: "多謝款待", reading: "ごちそうさま" }, { kanji: "辛苦了", reading: "おつかれさま" },
+            { kanji: "恭喜", reading: "おめでとう" }, { kanji: "新幹線", reading: "しんかんせん" }, { kanji: "圖書館", reading: "としょかん" },
+            { kanji: "腳踏車", reading: "じてんしゃ" }, { kanji: "電冰箱", reading: "れいぞうこ" }, { kanji: "洗衣機", reading: "せんたくき" },
+            { kanji: "屋頂", reading: "おくじょう" }, { kanji: "警察局", reading: "けいさつしょ" }, { kanji: "消防局", reading: "しょうぼうしょ" },
+            { kanji: "郵局", reading: "ゆうびんきょく" }, { kanji: "電影院", reading: "えいがかん" }, { kanji: "晚安", reading: "おやすみ" },
+            { kanji: "再見", reading: "さようなら" }, { kanji: "歡迎光臨", reading: "いらっしゃい" }, { kanji: "醫院", reading: "びょういん" }
         ];
 
+        let wordQueueIndex = 0;
         let animationFrameId;
         let lastTime = 0;
         
@@ -257,6 +300,13 @@
             score = 0;
             currentDuration = 20;
             updateStats();
+            
+            // 初始化字庫：先全體打亂，再依據假名長度由短到長排序
+            // 這樣長度相同的單字順序會是隨機的，且確保短字先出、長字後出
+            vocabulary.sort(() => Math.random() - 0.5);
+            vocabulary.sort((a, b) => a.reading.length - b.reading.length);
+            wordQueueIndex = 0;
+
             hiddenInput.focus();
             nextWord();
         }
@@ -275,7 +325,8 @@
 
         function updateStats() {
             document.getElementById('score-display').textContent = `擊破數: ${score}`;
-            currentDuration = Math.max(4, 20 - (score * 0.5));
+            // 核心加速邏輯：每答對一題扣 0.5 秒，最低極限限制在 5.0 秒
+            currentDuration = Math.max(5.0, 20.0 - (score * 0.5));
             document.getElementById('speed-display').textContent = `極限倒數: ${currentDuration.toFixed(1)}s`;
         }
 
@@ -448,7 +499,6 @@
             let shakeX = 0, shakeY = 0;
             if (progress > 0.75) { 
                 let intensity = (progress - 0.75) * 4; 
-                // 將震動幅度從 15 縮小到 5，產生高頻但細微的震顫感
                 shakeX = (Math.random() - 0.5) * 5 * intensity;
                 shakeY = (Math.random() - 0.5) * 5 * intensity;
                 wordContainer.style.filter = `drop-shadow(0 0 ${30 * intensity}px rgba(255,0,0,0.8))`;
@@ -494,8 +544,15 @@
             hiddenInput.value = ''; matchCount = 0;
             hiddenInput.focus();
 
-            currentWordIndex = Math.floor(Math.random() * vocabulary.length);
-            const word = vocabulary[currentWordIndex];
+            // 循序取出單字，若 120 多個字全打完，則重新洗牌並從頭開始
+            if (wordQueueIndex >= vocabulary.length) {
+                vocabulary.sort(() => Math.random() - 0.5);
+                vocabulary.sort((a, b) => a.reading.length - b.reading.length);
+                wordQueueIndex = 0;
+            }
+            
+            const word = vocabulary[wordQueueIndex];
+            wordQueueIndex++; // 指向下一個單字
             targetKana = word.reading;
 
             kanjiDisplay.textContent = word.kanji;
@@ -516,17 +573,10 @@
             let baseWidth = wordContainer.offsetWidth;
             let maxWidth = window.innerWidth * 0.95; 
             
-            // 修正：限制短單字的最大放大倍率
             if (baseWidth > 0) {
-                // 計算單一字元的平均寬度
                 let avgCharWidth = baseWidth / Math.max(1, targetKana.length);
-                // 假設這是一個 6 字元的單字，它填滿畫面所需的縮放比例
                 let scaleFor6Chars = maxWidth / (avgCharWidth * 6);
-                // 這個單字實際填滿畫面所需的極限縮放比例
                 let scaleToFillScreen = maxWidth / baseWidth;
-                
-                // 取兩者中較小的值：
-                // 短單字會受限於 6 字元的標準大小，長單字會受限於螢幕寬度避免破版
                 calculatedTargetScale = Math.min(scaleToFillScreen, scaleFor6Chars);
             } else {
                 calculatedTargetScale = 2;
