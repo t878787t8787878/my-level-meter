@@ -3,251 +3,174 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>50音極限手寫特訓</title>
+    <title>日文滑動鍵盤極限特訓</title>
     <style>
         body {
-            margin: 0;
-            padding: 0;
-            background-color: #111;
-            color: white;
+            margin: 0; padding: 0;
+            background-color: #111; color: white;
             font-family: 'Arial', sans-serif;
             overflow: hidden;
-            display: flex;
-            flex-direction: column;
+            display: flex; flex-direction: column;
             height: 100vh;
         }
 
         #game-screen {
-            flex: 1;
-            position: relative;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: radial-gradient(circle, #333 0%, #000 100%);
-            overflow: hidden;
-            perspective: 1000px;
+            flex: 1; position: relative;
+            display: flex; justify-content: center; align-items: center;
+            background: radial-gradient(circle, #2a2a35 0%, #000 100%);
+            overflow: hidden; perspective: 1000px;
         }
 
+        /* 漢字與上方假名提示的排版 */
         #word-container {
             position: absolute;
-            font-size: 4rem;
+            font-size: 5rem;
             font-weight: bold;
             color: #FFD700;
-            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 2px 2px 5px #000;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 3px 3px 6px #000;
             transform: scale(0.1) translateZ(-500px);
             opacity: 0;
+            text-align: center;
         }
 
-        /* 題目逼近的動畫 */
-        .approaching {
-            animation: zoomIn 10s linear forwards;
+        ruby { ruby-align: center; }
+        rt { 
+            font-size: 2rem; 
+            color: #00FFFF; /* 提示字用亮藍色區分 */
+            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 2px 2px 4px #000;
+            transform: translateY(-10px);
         }
+
+        .approaching { animation: zoomIn 10s linear forwards; }
 
         @keyframes zoomIn {
             0% { transform: scale(0.1) translateZ(-500px); opacity: 0; }
             10% { opacity: 1; }
-            90% { transform: scale(2.5) translateZ(200px); opacity: 1; }
-            100% { transform: scale(3) translateZ(300px); opacity: 0; }
+            90% { transform: scale(2.2) translateZ(100px); opacity: 1; }
+            100% { transform: scale(2.5) translateZ(200px); opacity: 0; }
         }
 
-        #timer-bar-container {
-            width: 100%;
-            height: 10px;
-            background-color: #333;
-        }
-
-        #timer-bar {
-            height: 100%;
-            width: 100%;
-            background-color: #00FF00;
-            transition: width 1s linear, background-color 0.5s;
-        }
+        #timer-bar-container { width: 100%; height: 12px; background-color: #333; }
+        #timer-bar { height: 100%; width: 100%; background-color: #00FF00; transition: width 1s linear, background-color 0.5s; }
 
         #ui-area {
-            height: 45vh; /* 給予手寫區足夠的空間 */
+            height: 25vh; /* 縮小UI區域，留空間給手機彈出鍵盤 */
             background-color: #222;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            padding: 10px;
-            box-sizing: border-box;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            padding: 15px; box-sizing: border-box;
+            border-top: 2px solid #444;
         }
 
-        #controls {
-            display: flex;
-            justify-content: space-between;
-            width: 100%;
-            max-width: 400px;
-            margin-bottom: 10px;
-        }
-
-        button {
-            padding: 10px 20px;
-            font-size: 1rem;
-            border: none;
-            border-radius: 5px;
-            background-color: #4CAF50;
-            color: white;
-            cursor: pointer;
-            font-weight: bold;
+        #player-input {
+            width: 90%; max-width: 400px;
+            font-size: 2rem; text-align: center;
+            padding: 15px; border-radius: 10px;
+            border: 3px solid #555; background-color: #fff;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            transition: border-color 0.2s;
         }
         
-        button.clear-btn { background-color: #f44336; }
-        button.check-btn { background-color: #2196F3; }
-
-        canvas {
-            background-color: #fff;
-            border-radius: 8px;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-            touch-action: none; /* 防止手機滑動 */
-            cursor: crosshair;
-        }
+        #player-input:focus { outline: none; border-color: #FFD700; }
 
         #answer-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
+            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.85); display: none;
+            flex-direction: column; justify-content: center; align-items: center;
             z-index: 10;
         }
 
-        #answer-text {
-            font-size: 3rem;
-            color: #fff;
-            margin-bottom: 20px;
-        }
+        #answer-text { font-size: 3rem; color: #fff; margin-bottom: 30px; text-align: center; }
+        button { padding: 15px 30px; font-size: 1.5rem; border: none; border-radius: 8px; background-color: #E50914; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        button:active { transform: translateY(2px); box-shadow: none; }
     </style>
 </head>
 <body>
 
     <div id="game-screen">
         <div id="word-container">準備</div>
-        
         <div id="answer-overlay">
             <div id="answer-text">解答: --</div>
-            <button onclick="nextWord()" style="font-size: 1.5rem;">下一題</button>
+            <button onclick="nextWord()">下一題</button>
         </div>
     </div>
 
-    <div id="timer-bar-container">
-        <div id="timer-bar"></div>
-    </div>
+    <div id="timer-bar-container"><div id="timer-bar"></div></div>
 
     <div id="ui-area">
-        <div id="controls">
-            <button class="clear-btn" onclick="clearCanvas()">清除重寫</button>
-            <button class="check-btn" onclick="showAnswer()">看解答</button>
-        </div>
-        <canvas id="drawing-board"></canvas>
+        <input type="text" id="player-input" placeholder="點此輸入..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
     </div>
 
     <script>
-        // 題庫 (可以自行擴充，例如加入車站、壽司等旅行實用單字)
+        // 題庫 (結合了旅遊、車站、滑雪與解謎常見字彙)
         const vocabulary = [
-            { question: "蘋果", answer: "りんご" },
-            { question: "車站", answer: "えき" },
-            { question: "東京", answer: "とうきょう" },
-            { question: "新幹線", answer: "しんかんせん" },
-            { question: "相機", answer: "カメラ" },
-            { question: "飯店", answer: "ホテル" }
+            { kanji: "東京", reading: "とうきょう" },
+            { kanji: "地下鉄", reading: "ちかてつ" },
+            { kanji: "荷物", reading: "にもつ" },
+            { kanji: "苗場", reading: "なえば" },
+            { kanji: "滑雪", reading: "スキー" },
+            { kanji: "謎解き", reading: "なぞとき" },
+            { kanji: "迷宮", reading: "めいきゅう" },
+            { kanji: "暗號", reading: "あんごう" },
+            { kanji: "改札口", reading: "かいさつぐち" },
+            { kanji: "切符", reading: "きっぷ" }
         ];
 
         let currentWordIndex = -1;
         let timerInterval;
         let timeLeft = 10;
 
-        // Canvas 設定
-        const canvas = document.getElementById('drawing-board');
-        const ctx = canvas.getContext('2d');
         const wordContainer = document.getElementById('word-container');
         const timerBar = document.getElementById('timer-bar');
         const answerOverlay = document.getElementById('answer-overlay');
         const answerText = document.getElementById('answer-text');
+        const playerInput = document.getElementById('player-input');
 
-        // 調整 Canvas 大小以適應手機螢幕
-        function resizeCanvas() {
-            const uiArea = document.getElementById('ui-area');
-            canvas.width = window.innerWidth * 0.9;
-            canvas.height = uiArea.clientHeight - 70; // 扣除按鈕高度
-            // 設置筆觸樣式
-            ctx.lineWidth = 8;
-            ctx.lineCap = 'round';
-            ctx.strokeStyle = '#000';
-        }
-        window.addEventListener('resize', resizeCanvas);
-        resizeCanvas();
-
-        // 繪圖變數與事件監聽
-        let isDrawing = false;
-
-        function startPosition(e) {
-            isDrawing = true;
-            draw(e);
+        // ★ 核心功能：將字串中的「片假名」全部轉換為「平假名」
+        function toHiragana(str) {
+            return str.replace(/[\u30a1-\u30f6]/g, function(match) {
+                // 利用 Unicode 編碼差距，片假名 - 0x60 就會變成平假名
+                var chr = match.charCodeAt(0) - 0x60;
+                return String.fromCharCode(chr);
+            });
         }
 
-        function endPosition() {
-            isDrawing = false;
-            ctx.beginPath();
-        }
+        // 監聽輸入框變化 (即時判定)
+        playerInput.addEventListener('input', function() {
+            if (currentWordIndex === -1) return; // 遊戲還沒開始
+            
+            const targetAnswer = vocabulary[currentWordIndex].reading;
+            const currentInput = playerInput.value.trim();
 
-        function draw(e) {
-            if (!isDrawing) return;
-            e.preventDefault(); // 防止螢幕滾動
-
-            let clientX, clientY;
-            if (e.type.includes('touch')) {
-                clientX = e.touches[0].clientX;
-                clientY = e.touches[0].clientY;
-            } else {
-                clientX = e.clientX;
-                clientY = e.clientY;
+            // 將答案與輸入都轉成平假名來比對 (這樣打 スキー 或 すきー 都算對)
+            if (toHiragana(currentInput) === toHiragana(targetAnswer)) {
+                // 答對了！直接進下一題
+                playerInput.style.backgroundColor = "#c8e6c9"; // 閃一下綠色
+                setTimeout(() => {
+                    playerInput.style.backgroundColor = "#fff";
+                    nextWord();
+                }, 200);
             }
-
-            const rect = canvas.getBoundingClientRect();
-            const x = clientX - rect.left;
-            const y = clientY - rect.top;
-
-            ctx.lineTo(x, y);
-            ctx.stroke();
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-        }
-
-        // 滑鼠事件
-        canvas.addEventListener('mousedown', startPosition);
-        canvas.addEventListener('mouseup', endPosition);
-        canvas.addEventListener('mousemove', draw);
-        // 觸控事件
-        canvas.addEventListener('touchstart', startPosition, {passive: false});
-        canvas.addEventListener('touchend', endPosition);
-        canvas.addEventListener('touchmove', draw, {passive: false});
-
-        function clearCanvas() {
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-        }
+        });
 
         // 遊戲邏輯
-        function startGame() {
-            nextWord();
-        }
+        function startGame() { nextWord(); }
 
         function nextWord() {
             answerOverlay.style.display = 'none';
-            clearCanvas();
+            playerInput.value = ''; // 清空輸入框
+            playerInput.focus();    // 自動對焦，保持鍵盤開啟
             
-            // 隨機挑選題目
             currentWordIndex = Math.floor(Math.random() * vocabulary.length);
-            wordContainer.textContent = vocabulary[currentWordIndex].question;
+            const currentObj = vocabulary[currentWordIndex];
             
-            // 重置動畫
+            // 組合帶有假名提示的 HTML
+            wordContainer.innerHTML = `<ruby>${currentObj.kanji}<rt>${currentObj.reading}</rt></ruby>`;
+            
             wordContainer.classList.remove('approaching');
-            void wordContainer.offsetWidth; // 觸發 reflow
+            void wordContainer.offsetWidth; // 觸發 reflow 重新播放動畫
             wordContainer.classList.add('approaching');
 
-            // 重置計時器
             timeLeft = 10;
             updateTimerBar();
             clearInterval(timerInterval);
@@ -264,24 +187,21 @@
         function updateTimerBar() {
             const percentage = (timeLeft / 10) * 100;
             timerBar.style.width = percentage + '%';
-            
-            if (timeLeft > 5) {
-                timerBar.style.backgroundColor = '#00FF00'; // 綠
-            } else if (timeLeft > 2) {
-                timerBar.style.backgroundColor = '#FFA500'; // 橘
-            } else {
-                timerBar.style.backgroundColor = '#FF0000'; // 紅
-            }
+            if (timeLeft > 5) timerBar.style.backgroundColor = '#00FF00';
+            else if (timeLeft > 2) timerBar.style.backgroundColor = '#FFA500';
+            else timerBar.style.backgroundColor = '#FF0000';
         }
 
         function showAnswer() {
             clearInterval(timerInterval);
             wordContainer.classList.remove('approaching');
-            answerText.textContent = `解答: ${vocabulary[currentWordIndex].answer}`;
+            const currentObj = vocabulary[currentWordIndex];
+            answerText.innerHTML = `時間到！<br>正解: ${currentObj.reading}`;
             answerOverlay.style.display = 'flex';
+            playerInput.blur(); // 收起鍵盤
         }
 
-        // 初始化開始
+        // 畫面載入後 1 秒開始
         setTimeout(startGame, 1000);
     </script>
 </body>
