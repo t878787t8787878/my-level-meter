@@ -7,6 +7,7 @@
     <style>
         :root {
             --duration: 20s;
+            --target-scale: 2; /* 系統會根據螢幕寬度自動計算覆寫這個值 */
         }
         body {
             margin: 0; padding: 0; background-color: #050510;
@@ -36,25 +37,28 @@
         }
         @keyframes moveForward { from { background-position: 0 0; } to { background-position: 0 60px; } }
 
+        /* 移除了 margin-top，讓文字在容器中完美垂直居中放大 */
         #word-container {
             position: relative; display: flex; flex-direction: column; align-items: center;
-            margin-top: -80px; z-index: 10;
+            z-index: 10; transform-origin: center center;
         }
         
+        /* 核心修改：利用 CSS 變數讓放大比例精準切齊螢幕左右 */
         .approaching { animation: zoomIn var(--duration) linear forwards; }
         @keyframes zoomIn {
-            0% { transform: scale(0.1) translateY(-150px); opacity: 0; }
+            0% { transform: scale(0.1); opacity: 0; }
             2% { opacity: 1; filter: drop-shadow(0 0 0px rgba(255,0,0,0)); }
-            100% { transform: scale(3) translateY(30px); opacity: 1; filter: drop-shadow(0 0 30px rgba(255,0,0,0.8)); }
+            100% { transform: scale(var(--target-scale)); opacity: 1; filter: drop-shadow(0 0 30px rgba(255,0,0,0.8)); }
         }
         
+        /* 核心修改：移除 brightness(0) 解決黑字殘影 Bug */
         .exploding { animation: explode 0.3s ease-out forwards; }
         @keyframes explode {
-            0% { transform: scale(1.4); filter: brightness(2); opacity: 1; }
-            100% { transform: scale(2.5); filter: brightness(0); opacity: 0; }
+            0% { transform: scale(var(--target-scale)); filter: brightness(2); opacity: 1; }
+            100% { transform: scale(calc(var(--target-scale) * 1.5)); filter: brightness(1); opacity: 0; }
         }
 
-        #kanji-display { font-size: 1.8rem; color: #888; margin-bottom: 10px; }
+        #kanji-display { font-size: 1.8rem; color: #888; margin-bottom: 10px; text-shadow: 2px 2px 4px #000; }
         #kana-display { font-size: 4rem; font-weight: bold; color: #fff; display: flex; gap: 8px; }
 
         .kana-char {
@@ -64,7 +68,6 @@
         .kana-char.correct { color: #00FF00; text-shadow: 0 0 20px #00FF00; transform: scale(1.1); }
         .kana-char.active { color: #00FFFF; text-shadow: 0 0 15px #00FFFF; border-bottom: 4px solid #00FFFF; }
 
-        /* 面板設計 */
         #flick-hint-panel {
             position: absolute; bottom: 15px;
             width: 92%; max-width: 380px;
@@ -75,7 +78,6 @@
             z-index: 60; backdrop-filter: blur(5px);
         }
 
-        /* 完美呈現手繪圖的按鍵設計 */
         #flick-key-icon {
             width: 90px; height: 90px;
             background: #222; border: 2px solid #888; border-radius: 12px;
@@ -88,25 +90,22 @@
             font-size: 2.5rem; font-weight: bold; color: #fff; z-index: 2;
         }
 
-        /* 空心三角形樣式 */
         .arrow {
-            position: absolute; font-size: 1.4rem; color: #444; font-weight: bold;
+            position: absolute; font-size: 1.4rem; color: #555; font-weight: bold;
             transition: all 0.2s; font-family: 'Arial', sans-serif;
             z-index: 1;
         }
         
+        /* 採用你手繪圖中的藍色系 */
         .arrow.active-arrow { 
-            color: #1E90FF; /* 採用手繪圖中的藍色系，如果想要螢光藍可改為 #00FFFF */
-            text-shadow: 0 0 10px #1E90FF; 
+            color: #1E90FF; text-shadow: 0 0 10px #1E90FF; 
         }
         
-        /* 將三角形貼齊內側 */
         .arrow-up { top: 2px; left: 50%; transform: translateX(-50%); }
         .arrow-down { bottom: 2px; left: 50%; transform: translateX(-50%); }
         .arrow-left { left: 4px; top: 50%; transform: translateY(-50%); }
         .arrow-right { right: 4px; top: 50%; transform: translateY(-50%); }
 
-        /* 放大動畫 */
         .arrow-up.active-arrow { transform: translateX(-50%) scale(1.3); }
         .arrow-down.active-arrow { transform: translateX(-50%) scale(1.3); }
         .arrow-left.active-arrow { transform: translateY(-50%) scale(1.3); }
@@ -150,7 +149,6 @@
             justify-content: center; align-items: center; z-index: 100; padding: 30px; text-align: center;
         }
         
-        /* 失去焦點/鍵盤收起時的警告畫面 */
         #resume-overlay { display: none; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
 
         button {
@@ -209,7 +207,7 @@
         <p style="line-height:1.6; color:#ccc;">
             請手動切換至「日文-假名輸入」鍵盤。<br>
             單字逼近的速度與倒數時間將完全同步。<br>
-            請在文字撞擊螢幕前將其擊碎！
+            請在文字撞擊螢幕邊緣前將其擊碎！
         </p>
         <button onclick="initGame()">啟動特訓引擎</button>
     </div>
@@ -302,20 +300,16 @@
         const answerOverlay = document.getElementById('answer-overlay');
         const resumeOverlay = document.getElementById('resume-overlay');
 
-        // 修復：更精準的鍵盤消失偵測機制
         function resizeLayout() {
             if (window.visualViewport) {
                 vpContainer.style.height = window.visualViewport.height + 'px';
                 vpContainer.style.top = window.visualViewport.offsetTop + 'px';
                 
-                // 如果可視高度幾乎等於螢幕高度，代表鍵盤收起了
                 if (window.visualViewport.height >= window.innerHeight * 0.85) {
-                    // 如果正在遊戲中，才顯示恢復畫面
                     if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none') {
                         resumeOverlay.style.display = 'flex';
                     }
                 } else {
-                    // 鍵盤彈出時自動隱藏恢復畫面
                     resumeOverlay.style.display = 'none';
                 }
             }
@@ -366,8 +360,25 @@
                 往 <span class="highlight" style="font-size:1.3rem">${hint.dir.replace('滑', '')}</span>
             `;
 
-            document.querySelectorAll('.arrow').forEach(a => a.classList.remove('active-arrow'));
-            if (hint.arrow) document.querySelector(`.arrow-${hint.arrow}`).classList.add('active-arrow');
+            // 核心修改：建立實心/空心字典 (\uFE0E 確保 iOS 不會轉為 Emoji)
+            const arrowElements = {
+                'up': { el: document.querySelector('.arrow-up'), hollow: '△', solid: '▲\uFE0E' },
+                'down': { el: document.querySelector('.arrow-down'), hollow: '▽', solid: '▼\uFE0E' },
+                'left': { el: document.querySelector('.arrow-left'), hollow: '◁', solid: '◀\uFE0E' },
+                'right': { el: document.querySelector('.arrow-right'), hollow: '▷', solid: '▶\uFE0E' }
+            };
+
+            // 先將所有的箭頭重置為空心，並移除高亮
+            for (let dir in arrowElements) {
+                arrowElements[dir].el.textContent = arrowElements[dir].hollow;
+                arrowElements[dir].el.classList.remove('active-arrow');
+            }
+
+            // 如果該假名需要滑動，將對應的箭頭變成實心並高亮
+            if (hint.arrow && arrowElements[hint.arrow]) {
+                arrowElements[hint.arrow].el.textContent = arrowElements[hint.arrow].solid;
+                arrowElements[hint.arrow].el.classList.add('active-arrow');
+            }
         }
 
         hiddenInput.addEventListener('input', function() {
@@ -421,19 +432,17 @@
 
         function clearAndExplode() {
             clearInterval(timerInterval);
-            // 修復：爆炸時強制解除暫停狀態，以防剛好壓秒過關導致動畫卡住
             wordContainer.style.animationPlayState = 'running';
             wordContainer.className = 'exploding';
             setTimeout(nextWord, 300);
         }
 
         function nextWord() {
-            // 修復：徹底清除暫停狀態與動畫 class，確保下一題動畫重新開始
             wordContainer.style.animationPlayState = 'running'; 
+            
+            // 將 CSS Class 拔掉，讓 DOM 恢復到未放大的原始尺寸
             wordContainer.className = '';
-            void wordContainer.offsetWidth; // 觸發瀏覽器重繪
-            wordContainer.className = 'approaching';
-
+            
             hiddenInput.value = ''; matchCount = 0;
             hiddenInput.focus();
 
@@ -442,12 +451,32 @@
             targetKana = word.reading;
 
             document.getElementById('kanji-display').textContent = word.kanji;
-            // 重新產生假名 HTML 結構，確保文字顏色變回白色
             kanaDisplay.innerHTML = targetKana.split('').map((c, i) => 
                 `<span id="char-${i}" class="kana-char ${i===0?'active':''}">${c}</span>`
             ).join('');
 
             updateFlickHint();
+
+            // 核心修改：動態計算放大比例！
+            // 強制瀏覽器計算目前文字實際寬度
+            void wordContainer.offsetWidth; 
+            
+            let baseWidth = wordContainer.offsetWidth;
+            let maxWidth = window.innerWidth * 0.95; // 螢幕寬度的 95%
+            
+            // 計算如果要把這個單字放大到撐滿螢幕，需要放大幾倍
+            let scaleFactor = 1.5; 
+            if (baseWidth > 0) {
+                scaleFactor = maxWidth / baseWidth;
+            }
+            // 設一個極限值防止短單字(例如「あき」)變得跟哥吉拉一樣大
+            scaleFactor = Math.min(scaleFactor, 3.5); 
+            
+            // 將計算好的比例寫入 CSS 變數，動畫就會自動放大到這個精準的數值
+            rootStyles.style.setProperty('--target-scale', scaleFactor);
+            
+            // 啟動逼近動畫
+            wordContainer.className = 'approaching';
 
             timeLeft = currentDuration;
             updateTimerBar();
@@ -467,7 +496,6 @@
 
         function showAnswer() {
             clearInterval(timerInterval);
-            // 當時間到時，停止動畫，讓文字卡在 100% 撞擊畫面的位置
             wordContainer.style.animationPlayState = 'paused'; 
             
             document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
