@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>第一人稱假名擊破特訓 - 特效＆指引升級</title>
+    <title>iPhone 日文 Flick 漸進特訓</title>
     <style>
         :root {
             --duration: 20s;
@@ -39,86 +39,77 @@
 
         #word-container {
             position: relative; display: flex; flex-direction: column; align-items: center;
-            margin-top: -80px; z-index: 10;
+            z-index: 10; transform-origin: center center;
         }
         
-        /* 核心逼近動畫：放大、白字 */
         .approaching { animation: zoomIn var(--duration) linear forwards; }
         @keyframes zoomIn {
-            0% { transform: scale(0.1) translateY(-150px); opacity: 0; }
+            0% { transform: scale(0.1); opacity: 0; }
             2% { opacity: 1; filter: drop-shadow(0 0 0px rgba(255,0,0,0)); }
-            100% { transform: scale(var(--target-scale)) translateY(30px); opacity: 1; filter: drop-shadow(0 0 30px rgba(255,0,0,0.8)); }
+            100% { transform: scale(var(--target-scale)); opacity: 1; filter: drop-shadow(0 0 30px rgba(255,0,0,0.8)); }
         }
         
-        /* 核心修改：爆破動畫升級——砸碎與破碎效果，避開變黑 */
         .exploding { animation: explode 0.3s ease-out forwards; }
         @keyframes explode {
-            0% { transform: scale(var(--target-scale)); filter: brightness(2) drop-shadow(0 0 20px #00FFFF); opacity: 1; }
-            100% { transform: scale(calc(var(--target-scale) * 1.5)); filter: brightness(1) drop-shadow(0 0 50px #00FFFF); opacity: 0; }
+            0% { transform: scale(var(--target-scale)); filter: brightness(2); opacity: 1; }
+            100% { transform: scale(calc(var(--target-scale) * 1.5)); filter: brightness(1); opacity: 0; }
         }
 
-        #kanji-display { font-size: 1.8rem; color: #888; margin-bottom: 10px; text-shadow: 2px 2px 4px #000; }
-        #kana-display { font-size: 4rem; font-weight: bold; color: #fff; display: flex; gap: 8px; }
+        #kanji-display { font-size: 1.8rem; color: #888; margin-bottom: 15px; text-shadow: 2px 2px 4px #000; }
+        #kana-display { display: flex; gap: 10px; }
+
+        .char-col {
+            display: flex; flex-direction: column; align-items: center;
+        }
 
         .kana-char {
-            display: inline-block; transition: all 0.2s;
+            font-size: 4rem; font-weight: bold; color: #fff; transition: all 0.2s;
             text-shadow: 0 0 10px rgba(255, 255, 255, 0.2), 3px 3px 6px #000;
         }
         .kana-char.correct { color: #00FF00; text-shadow: 0 0 20px #00FF00; transform: scale(1.1); }
         .kana-char.active { color: #00FFFF; text-shadow: 0 0 15px #00FFFF; border-bottom: 4px solid #00FFFF; }
 
-        /* 核心修改：移動小提示面板到左下角，固定定位 */
-        #flick-hint-panel {
-            position: absolute; bottom: 10px; left: 10px; /* 固定在左下角 */
-            width: 90%; max-width: 320px; /* 稍微縮小，避開stats */
-            background: rgba(10, 20, 30, 0.9); /* 加強背景 */
-            border: 2px solid #00FFFF; border-radius: 10px;
-            padding: 10px; display: flex; align-items: center;
+        .romaji-char {
+            font-size: 1.2rem; font-weight: bold; color: #666; margin-top: 5px;
+            transition: all 0.2s; font-family: monospace; letter-spacing: 1px;
+        }
+        .romaji-char.correct { color: #00FF00; text-shadow: 0 0 10px #00FF00; }
+        .romaji-char.active { color: #00FFFF; text-shadow: 0 0 10px #00FFFF; }
+
+        /* 核心修改 1：將按鍵提示方塊移至左下角 */
+        #flick-key-icon {
+            position: absolute; bottom: 30px; left: 20px; /* 釘在左下角，保留適當邊距 */
+            width: 90px; height: 90px;
+            background: #151515; border: 2px solid #555; border-radius: 15px;
+            display: flex; justify-content: center; align-items: center;
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.15), inset 0 0 20px rgba(0,0,0,0.9);
-            z-index: 60; backdrop-filter: blur(5px);
+            z-index: 60;
         }
 
-        #flick-key-icon {
-            width: 80px; height: 80px; /* 稍微縮小 */
-            background: #222; border: 2px solid #aaa; border-radius: 10px;
-            display: flex; justify-content: center; align-items: center;
-            font-size: 2.3rem; font-weight: bold; margin-right: 12px;
-            position: relative; flex-shrink: 0;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+        #key-main-char {
+            font-size: 2.8rem; font-weight: bold; color: #fff; z-index: 2;
         }
 
         .arrow {
-            position: absolute; font-size: 1.3rem; color: #444; font-weight: bold;
+            position: absolute; font-size: 1.4rem; color: #444; font-weight: bold;
             transition: all 0.2s; font-family: 'Arial', sans-serif;
             z-index: 1;
         }
         
         .arrow.active-arrow { 
-            color: #00FFFF; text-shadow: 0 0 8px #00FFFF; 
+            color: #1E90FF; text-shadow: 0 0 10px #1E90FF; 
         }
         
-        .arrow-up { top: -18px; left: 50%; transform: translateX(-50%); }
-        .arrow-down { bottom: -18px; left: 50%; transform: translateX(-50%); }
-        .arrow-left { left: -18px; top: 50%; transform: translateY(-50%); }
-        .arrow-right { right: -18px; top: 50%; transform: translateY(-50%); }
+        .arrow-up { top: 2px; left: 50%; transform: translateX(-50%); }
+        .arrow-down { bottom: 2px; left: 50%; transform: translateX(-50%); }
+        .arrow-left { left: 4px; top: 50%; transform: translateY(-50%); }
+        .arrow-right { right: 4px; top: 50%; transform: translateY(-50%); }
 
         .arrow-up.active-arrow { transform: translateX(-50%) scale(1.3); }
         .arrow-down.active-arrow { transform: translateX(-50%) scale(1.3); }
         .arrow-left.active-arrow { transform: translateY(-50%) scale(1.3); }
         .arrow-right.active-arrow { transform: translateY(-50%) scale(1.3); }
 
-        #hint-details { flex: 1; display: flex; flex-direction: column; justify-content: center; }
-        .hint-row-1 { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 5px; border-bottom: 1px solid #444; padding-bottom: 5px;}
-        #hint-romaji { font-size: 1.6rem; font-weight: bold; color: #FFD700; letter-spacing: 2px;}
-        #hint-grid-pos { font-size: 1rem; color: #aaa; background: #333; padding: 3px 8px; border-radius: 4px; }
-        
-        /* 核心修改：兩步提示 UI，支持顯示多個步驟 */
-        #hint-steps { display: flex; flex-direction: column; gap: 4px; font-size: 1rem; line-height: 1.3; color: #ddd; }
-        .hint-step-item { display: flex; align-items: center; gap: 5px;}
-        .hint-step-seq { font-size: 1.2rem; font-weight: bold; color: #FFD700; }
-        .highlight { color: #00FFFF; font-weight: bold; }
-
-        /* 遊戲資訊 UI */
         #game-stats {
             position: absolute; top: 15px; right: 20px;
             text-align: right; z-index: 50;
@@ -126,34 +117,30 @@
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
 
-        /* 核心修改：砸碎碎片特效 */
+        /* 子彈發射樣式 */
         .bullet {
             position: fixed; z-index: 50; font-size: 2.5rem; color: #00FFFF;
             text-shadow: 0 0 15px #00FFFF; pointer-events: none;
-            transform: translate(-50%, -50%); 
-            /* 子彈起點：畫面正下方置中，貝茲曲線加速 */
-            transition: all 0.1s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+            transform: translate(-50%, -50%); transition: all 0.1s ease-in;
         }
 
-        /* 破碎碎片樣式 */
-        .kana-shard {
-            position: absolute;
-            font-size: 4rem; /* 與 kana-char 初始大小一致 */
-            font-weight: bold;
-            color: #00FFFF;
-            text-shadow: 0 0 20px #00FFFF;
-            opacity: 1;
+        /* 核心修改 2：實體碎裂粒子樣式 */
+        .shard {
+            position: fixed;
+            width: 8px; height: 8px;
+            /* 將切出不規則三角形模擬玻璃碎片 */
+            clip-path: polygon(50% 0%, 100% 100%, 0% 100%);
             pointer-events: none;
             z-index: 70;
-            /* 碎片的 Unicode 標籤，破碎的幾何符號 */
-            font-family: 'Times New Roman', Times, serif;
-            /* 破碎碎片將使用 animation 動畫抛散 */
+            transform: translate(-50%, -50%);
+            /* 套用物理噴射動畫 */
+            animation: shatterAnim 0.3s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
         }
 
-        /* 碎片抛散動畫 */
-        @keyframes shardScatter {
-            0% { transform: scale(1) translate(0, 0); opacity: 1; }
-            100% { transform: scale(0.3) translate(var(--shard-x), var(--shard-y)) rotate(var(--shard-rotate)); opacity: 0; }
+        /* 粒子噴射與淡出的物理運算 */
+        @keyframes shatterAnim {
+            0% { transform: translate(-50%, -50%) scale(1.5) rotate(0deg); opacity: 1; }
+            100% { transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty))) scale(0) rotate(var(--rot)); opacity: 0; }
         }
 
         @keyframes shake {
@@ -174,7 +161,6 @@
             justify-content: center; align-items: center; z-index: 100; padding: 30px; text-align: center;
         }
         
-        /* 失去焦點警告畫面 */
         #resume-overlay { display: none; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
 
         button {
@@ -186,7 +172,7 @@
 </head>
 <body>
 
-    <input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="spellcheck" lang="ja">
+    <input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
 
     <div id="visual-viewport-container">
         <div id="tunnel"><div class="tunnel-grid"></div></div>
@@ -202,22 +188,12 @@
             <div id="kana-display"></div>
         </div>
 
-        <div id="flick-hint-panel">
-            <div id="flick-key-icon">
-                <span id="key-main-char">あ</span>
-                <span class="arrow arrow-up">▲\uFE0E</span>
-                <span class="arrow arrow-down">▼\uFE0E</span>
-                <span class="arrow arrow-left">◀\uFE0E</span>
-                <span class="arrow arrow-right">▶\uFE0E</span>
-            </div>
-            <div id="hint-details">
-                <div class="hint-row-1">
-                    <span id="hint-romaji">a</span>
-                    <span id="hint-grid-pos">左上格</span>
-                </div>
-                <div id="hint-steps">
-                    </div>
-            </div>
+        <div id="flick-key-icon">
+            <span class="arrow arrow-up">△</span>
+            <span class="arrow arrow-down">▽</span>
+            <span class="arrow arrow-left">◁</span>
+            <span class="arrow arrow-right">▷</span>
+            <span id="key-main-char">あ</span>
         </div>
     </div>
 
@@ -232,8 +208,7 @@
         <p style="line-height:1.6; color:#ccc;">
             請手動切換至「日文-假名輸入」鍵盤。<br>
             單字逼近的速度與倒數時間將完全同步。<br>
-            擊破越快，護盾受損越小！<br>
-            <span style="color:#FFD700; font-size:0.9rem;">(已恢復被刪除的濁音題串與促音)</span>
+            請在文字撞擊螢幕邊緣前將其擊碎！
         </p>
         <button onclick="initGame()">啟動特訓引擎</button>
     </div>
@@ -246,389 +221,16 @@
     </div>
 
     <script>
-        // 核心修改：iPhone 日文鍵盤映射表支持兩步提示（濁音、促音）
         const flickMap = {
-            // 清音示例
-            'あ': { key: 'あ', dir: '點擊 (中心)', arrow: '', romaji: 'a', grid: '左上格' }, 
-            'い': { key: 'あ', dir: '左滑', arrow: 'left', romaji: 'i', grid: '左上格' }, 
-            'う': { key: 'あ', dir: '上滑', arrow: 'up', romaji: 'u', grid: '左上格' }, 
-            'え': { key: 'あ', dir: '右滑', arrow: 'right', romaji: 'e', grid: '左上格' }, 
-            'お': { key: 'あ', dir: '下滑', arrow: 'down', romaji: 'o', grid: '左上格' },
-            'か': { key: 'か', dir: '點擊 (中心)', arrow: '', romaji: 'ka', grid: '中上格' }, 
-            'き': { key: 'か', dir: '左滑', arrow: 'left', romaji: 'ki', grid: '中上格' }, 
-            'く': { key: 'か', dir: '上滑', arrow: 'up', romaji: 'ku', grid: '中上格' }, 
-            'け': { key: 'か', dir: '右滑', arrow: 'right', romaji: 'ke', grid: '中上格' }, 
-            'こ': { key: 'か', dir: '下滑', arrow: 'down', romaji: 'ko', grid: '中上格' },
-            'さ': { key: 'さ', dir: '點擊 (中心)', arrow: '', romaji: 'sa', grid: '右上格' }, 
-            'し': { key: 'さ', dir: '左滑', arrow: 'left', romaji: 'shi', grid: '右上格' }, 
-            'す': { key: 'さ', dir: '上滑', arrow: 'up', romaji: 'su', grid: '右上格' }, 
-            'せ': { key: 'さ', dir: '右滑', arrow: 'right', romaji: 'se', grid: '右上格' }, 
-            'そ': { key: 'さ', dir: '下滑', arrow: 'down', romaji: 'so', grid: '右上格' },
-            'た': { key: 'た', dir: '點擊 (中心)', arrow: '', romaji: 'ta', grid: '左中格' }, 
-            'ち': { key: 'た', dir: '左滑', arrow: 'left', romaji: 'chi', grid: '左中格' }, 
-            'つ': { key: 'た', dir: '上滑', arrow: 'up', romaji: 'tsu', grid: '左中格' }, 
-            'て': { key: 'た', dir: '右滑', arrow: 'right', romaji: 'te', grid: '左中格' }, 
-            'と': { key: 'た', dir: '下滑', arrow: 'down', romaji: 'to', grid: '左中格' },
-            'な': { key: 'な', dir: '點擊 (中心)', arrow: '', romaji: 'na', grid: '正中格' }, 
-            'に': { key: 'な', dir: '左滑', arrow: 'left', romaji: 'ni', grid: '正中格' }, 
-            'ぬ': { key: 'な', dir: '上滑', arrow: 'up', romaji: 'nu', grid: '正中格' }, 
-            'ね': { key: 'な', dir: '右滑', arrow: 'right', romaji: 'ne', grid: '正中格' }, 
-            'の': { key: 'な', dir: '下滑', arrow: 'down', romaji: 'no', grid: '正中格' },
-            'は': { key: 'は', dir: '點擊 (中心)', arrow: '', romaji: 'ha', grid: '右中格' }, 
-            'ひ': { key: 'は', dir: '左滑', arrow: 'left', romaji: 'hi', grid: 'right 中格' }, 
-            'ふ': { key: 'は', dir: '上滑', arrow: 'up', romaji: 'fu', grid: '右中格' }, 
-            'へ': { key: 'は', dir: '右滑', arrow: 'right', romaji: 'he', grid: '右中格' }, 
-            'ほ': { key: 'は', dir: '下滑', arrow: 'down', romaji: 'ho', grid: '右中格' },
-            'ま': { key: 'ま', dir: '點擊 (中心)', arrow: '', romaji: 'ma', grid: '左下格' }, 
-            'み': { key: 'ま', dir: '左滑', arrow: 'left', romaji: 'mi', grid: '左下格' }, 
-            'む': { key: 'ま', dir: '上滑', arrow: 'up', romaji: 'mu', grid: '左下格' }, 
-            'め': { key: 'ま', dir: '右滑', arrow: 'right', romaji: 'me', grid: '左下格' }, 
-            'も': { key: 'ま', dir: '下滑', arrow: 'down', romaji: 'mo', grid: '左下格' },
-            'や': { key: 'や', dir: '點擊 (中心)', arrow: '', romaji: 'ya', grid: '中下格' }, 
-            'ゆ': { key: 'や', dir: '上滑', arrow: 'up', romaji: 'yu', grid: '中下格' }, 
-            'よ': { key: 'や', dir: '下滑', arrow: 'down', romaji: 'yo', grid: '中下格' }, 
-            'ら': { key: 'ら', dir: '點擊 (中心)', arrow: '', romaji: 'ra', grid: '右下格' }, 
-            'り': { key: 'ら', dir: '左滑', arrow: 'left', romaji: 'ri', grid: '右下格' }, 
-            'る': { key: 'ら', dir: '上滑', arrow: 'up', romaji: 'ru', grid: '右下格' }, 
-            'れ': { key: 'ら', dir: '右滑', arrow: 'right', romaji: 're', grid: '右下格' }, 
-            'ろ': { key: 'ら', dir: '下滑', arrow: 'down', romaji: 'ro', grid: '右下格' },
-            'わ': { key: 'わ', dir: '點擊 (中心)', arrow: '', romaji: 'wa', grid: '底排中格' }, 
-            'を': { key: 'わ', dir: '左滑', arrow: 'left', romaji: 'wo', grid: '底排中格' }, 
-            'ん': { key: 'わ', dir: '上滑', arrow: 'up', romaji: 'n', grid: '底排中格' },
-            'ー': { key: 'わ', dir: '右滑', arrow: 'right', romaji: '-', grid: '底排中格' },
-            
-            // 濁音示例：提示面板會顯示兩步序列。第一步打 [清音]，再打 [浊点]。
-            'が': { key: 'か', dir: '點擊 (中心)', arrow: '', romaji: 'ga', grid: '中上格', steps: [{ key: 'か', dir: '中心' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            'ぎ': { key: 'か', dir: '左滑', arrow: 'left', romaji: 'gi', grid: '中上格', steps: [{ key: 'か', dir: '左滑' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            'ぐ': { key: 'か', dir: '上滑', arrow: 'up', romaji: 'gu', grid: '中上格', steps: [{ key: 'か', dir: '上滑' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            'げ': { key: 'か', dir: '右滑', arrow: 'right', romaji: 'ge', grid: '中上格', steps: [{ key: 'か', dir: '右滑' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            'ご': { key: 'か', dir: '下滑', arrow: 'down', romaji: 'go', grid: '中上格', steps: [{ key: 'か', dir: '下滑' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            
-            'ざ': { key: 'さ', dir: '點擊 (中心)', arrow: '', romaji: 'za', grid: '右上格', steps: [{ key: 'さ', dir: '中心' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            'じ': { key: 'さ', dir: '左滑', arrow: 'left', romaji: 'ji', grid: '右上格', steps: [{ key: 'さ', dir: '左滑' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            
-            'だ': { key: 'た', dir: '點擊 (中心)', arrow: '', romaji: 'da', grid: '左中格', steps: [{ key: 'た', dir: '中心' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            'ぢ': { key: 'た', dir: '左滑', arrow: 'left', romaji: 'di', grid: '左中格', steps: [{ key: 'た', dir: '左滑' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            
-            'ば': { key: 'は', dir: '點擊 (中心)', arrow: '', romaji: 'ba', grid: '右中格', steps: [{ key: 'は', dir: '中心' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            'び': { key: 'は', dir: '左滑', arrow: 'left', romaji: 'bi', grid: '右中格', steps: [{ key: 'は', dir: '左滑' }, { key: 'あ', dir: '左滑', nextKey: '゛' }] },
-            
-            'ぱ': { key: 'は', dir: '點擊 (中心)', arrow: '', romaji: 'pa', grid: '右中格', steps: [{ key: 'は', dir: '中心' }, { key: 'あ', dir: '左滑', nextKey: '゜' }] },
-            'ぴ': { key: 'は', dir: '左滑', arrow: 'left', romaji: 'pi', grid: '右中格', steps: [{ key: 'は', dir: '左滑' }, { key: 'あ', dir: '左滑', nextKey: '゜' }] },
-            
-            // 核心修改：促音提示修復——打 [つ] 再按 [小]。iPhone上是打 つ (た+上) 然後按濁點鍵。提示是：打 [つ] 再按 [小]。
-            'っ': { key: 'た', dir: '上滑', arrow: 'up', romaji: 'tsu', grid: '左中格', steps: [{ key: 'た', dir: '上滑' }, { key: 'あ', dir: '左滑', nextKey: '小' }] },
-            
-            // 核心修改：拗音提示示例（小字，如 よ、ゆ、ゃ）
-            'ょ': { key: 'や', dir: '下滑', arrow: 'down', romaji: 'yo', grid: '中下格', steps: [{ key: 'や', dir: '下滑' }, { key: '拗音键', dir: '中心', nextKey: '拗音' }] } // ya右滑是拗音符。打母音（如き）然後按右滑。提示是：打 [母音]，再按 [拗音鍵]。
-        };
-
-        // 核心修改：題庫擴充，恢復濁音題串
-        const vocabulary = [
-            { kanji: "壽司", reading: "すし" }, { kanji: "拉麵", reading: "らーめん" }, { kanji: "車站", reading: "えき" },
-            { kanji: "地下鐵", reading: "ちかてつ" }, { kanji: "藥妝店", reading: "くすり" }, { kanji: "行李", reading: "にもつ" }, 
-            { kanji: "飯店", reading: "ほてる" }, { kanji: "滑雪", reading: "すきー" }, { kanji: "東京", reading: "とうきょう" },
-            { kanji: "肉", reading: "にく" }, { kanji: "相機", reading: "かめら" }, { kanji: "雨傘", reading: "かさ" },
-            { kanji: "秋", reading: "あき" }, { kanji: "切符", reading: "きっぷ" }, // 促音，已修復小字提示
-            { kanji: "春天", reading: "はる" }, { kanji: "夏天", reading: "なつ" }, { kanji: "冬天", reading: "ふゆ" }, { kanji: "早安", reading: "おはよう" },
-            { kanji: "機票", reading: "ちけっと" }, { kanji: "貓", reading: "ねこ" }, { kanji: "狗", reading: "いぬ" },
-            { kanji: "秘密", reading: "ひみつ" }, { kanji: "寺廟", reading: "てら" }, { kanji: "橋", reading: "はし" }, { kanji: "新宿", reading: "しんじゅく" },
-            // 濁音題串恢復
-            { kanji: "燒肉", reading: "やきにく" }, { kanji: "暗號", reading: "あんごう" }, // 濁音
-            { kanji: "啤酒", reading: "びーる" }, // 濁音
-            { kanji: "蕎麥麵", reading: "そば" }, // 濁音
-            { kanji: "迷宮", reading: "めいきゅう" }
-        ];
-
-        let currentWordIndex = -1;
-        let timerInterval;
-        let currentDuration = 20; 
-        let timeLeft = 20;
-        let targetKana = "";
-        let matchCount = 0;
-        let score = 0;
-
-        const hiddenInput = document.getElementById('hidden-input');
-        const vpContainer = document.getElementById('visual-viewport-container');
-        const kanaDisplay = document.getElementById('kana-display');
-        const keyMainChar = document.getElementById('key-main-char');
-        const wordContainer = document.getElementById('word-container');
-        const rootStyles = document.documentElement;
-        
-        const startOverlay = document.getElementById('start-overlay');
-        const answerOverlay = document.getElementById('answer-overlay');
-        const resumeOverlay = document.getElementById('resume-overlay');
-        const hintSteps = document.getElementById('hint-steps');
-
-        function resizeLayout() {
-            if (window.visualViewport) {
-                vpContainer.style.height = window.visualViewport.height + 'px';
-                vpContainer.style.top = window.visualViewport.offsetTop + 'px';
-                
-                // 核心修改：修正偵測，只要可視高度幾乎等於螢幕高度，就代表鍵盤消失
-                if (window.visualViewport.height >= window.innerHeight * 0.85) {
-                    // 如果正在遊戲中，才顯示恢復畫面
-                    if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none') {
-                        resumeOverlay.style.display = 'flex';
-                    }
-                } else {
-                    // 鍵盤彈出時自動隱藏恢復畫面
-                    resumeOverlay.style.display = 'none';
-                }
-            }
-        }
-        window.visualViewport.addEventListener('resize', resizeLayout);
-
-        function toHiragana(str) {
-            return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
-        }
-
-        function initGame() {
-            startOverlay.style.display = 'none';
-            score = 0;
-            currentDuration = 20;
-            updateStats();
-            hiddenInput.focus();
-            nextWord();
-        }
-
-        function resetGame() {
-            answerOverlay.style.display = 'none';
-            initGame();
-        }
-
-        function resumeGame() {
-            resumeOverlay.style.display = 'none';
-            hiddenInput.focus();
-        }
-
-        function updateStats() {
-            document.getElementById('score-display').textContent = `擊破數: ${score}`;
-            currentDuration = Math.max(4, 20 - (score * 0.5));
-            document.getElementById('speed-display').textContent = `極限倒數: ${currentDuration.toFixed(1)}s`;
-            rootStyles.style.setProperty('--duration', currentDuration + 's');
-        }
-
-        // 核心修改：升級更新兩步提示（濁音、促音、拗音）
-        function updateFlickHint() {
-            const char = targetKana[matchCount];
-            const hiraChar = toHiragana(char); 
-            const hint = flickMap[hiraChar] || { key: '?', romaji: '?', grid: '未知' };
-
-            keyMainChar.textContent = hint.key;
-            document.getElementById('hint-romaji').textContent = hint.romaji.toUpperCase();
-            document.getElementById('hint-grid-pos').textContent = hint.grid;
-            
-            // 清空舊的步驟提示
-            hintSteps.innerHTML = "";
-            
-            if (hint.steps) {
-                // 如果是兩步提示
-                hint.steps.forEach((step, idx) => {
-                    const stepItem = document.createElement('div');
-                    stepItem.className = 'hint-step-item';
-                    
-                    // 將對應的濁點鍵/拗音鍵定義在提示中
-                    let actionText = '';
-                    if (step.nextKey) {
-                        actionText = `按 <span class="highlight">${step.nextKey}</span> (左下角)`;
-                    } else {
-                        // 清音清單中的單步 Flick
-                        actionText = `${step.dir.includes('點擊') ? '直接點擊' : '按住'} <span class="highlight" style="font-size:1.3rem">${step.key}</span> 往 <span class="highlight" style="font-size:1.3rem">${step.dir.replace('滑', '')}</span>`;
-                    }
-                    
-                    stepItem.innerHTML = `<span class="hint-step-seq">${idx + 1}.</span> ${actionText}`;
-                    hintSteps.appendChild(stepItem);
-                });
-            } else {
-                // 如果是清音單步 Flick
-                hintSteps.innerHTML = `
-                    <div class="hint-step-item">
-                        按住 <span class="highlight" style="font-size:1.3rem">${hint.key}</span> 往 <span class="highlight" style="font-size:1.3rem">${hint.dir.replace('滑', '')}</span>
-                    </div>
-                `;
-            }
-
-            // 更新三角形箭頭（針對單步清音定位，兩步則指引第一步清音）
-            document.querySelectorAll('.arrow').forEach(a => a.classList.remove('active-arrow'));
-            if (hint.arrow) document.querySelector(`.arrow-${hint.arrow}`).classList.add('active-arrow');
-        }
-
-        hiddenInput.addEventListener('input', function() {
-            let inputVal = toHiragana(hiddenInput.value);
-            
-            if (inputVal.length > matchCount) {
-                let lastChar = inputVal[inputVal.length - 1];
-                let targetChar = toHiragana(targetKana[matchCount]);
-
-                if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
-                    // 如果出現濁音混音的類型，也要再畫面左下角的小視窗提示出要怎麼按出來。核心修改：答題正確——砸碎特效。碎片的 `<span>` 內容是假名文字，破碎樣式。破碎碎片（`.kana-shard`）可以由子彈擊中時目標假名的 `<span>` 生成。
-                    fireBullet(targetKana[matchCount], matchCount);
-                    matchCount++;
-                    
-                    document.querySelectorAll('.kana-char').forEach((s, idx) => {
-                        if (idx < matchCount) s.className = 'kana-char correct';
-                        else if (idx === matchCount) s.className = 'kana-char active';
-                        else s.className = 'kana-char'; // 避開殘留白字Bug
-                    });
-
-                    if (matchCount === targetKana.length) {
-                        score++;
-                        updateStats();
-                        clearAndExplode();
-                    } else {
-                        updateFlickHint();
-                    }
-                } else {
-                    const errorSpan = document.getElementById(`char-${matchCount}`);
-                    errorSpan.classList.remove('shake');
-                    void errorSpan.offsetWidth;
-                    errorSpan.classList.add('shake');
-                }
-                hiddenInput.value = targetKana.substring(0, matchCount);
-            }
-        });
-
-        function fireBullet(char, idx) {
-            const bullet = document.createElement('div');
-            bullet.className = 'bullet';
-            bullet.textContent = char;
-            const startY = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-            bullet.style.left = '50%'; bullet.style.top = startY + 'px';
-            document.body.appendChild(bullet);
-
-            const rect = document.getElementById(`char-${idx}`).getBoundingClientRect();
-            void bullet.offsetWidth;
-            bullet.style.left = (rect.left + rect.width/2) + 'px';
-            bullet.style.top = (rect.top + rect.height/2) + 'px';
-            bullet.style.opacity = '0';
-            setTimeout(() => bullet.remove(), 100);
-        }
-
-        // 核心修改：升級正確特效——砸碎碎片拋散
-        function clearAndExplode() {
-            clearInterval(timerInterval);
-            // 核心修改：爆炸時強制解除暫停狀態，以防剛好壓秒過關導致動畫卡住
-            wordContainer.style.animationPlayState = 'running';
-            wordContainer.className = 'exploding';
-            
-            // 核心修改：子彈擊中時，生成破碎碎片並拋散
-            createShards(matchCount - 1);
-            
-            setTimeout(nextWord, 300);
-        }
-
-        // 生成碎片的邏輯。破碎碎片（`.kana-shard`）可以由子彈擊中時目標假名的 `<span>` 生成。
-        function createShards(lastCorrectIdx) {
-            const shardText = targetKana[lastCorrectIdx];
-            const kanaSpan = document.getElementById(`char-${lastCorrectIdx}`);
-            if (!kanaSpan) return;
-            const rect = kanaSpan.getBoundingClientRect();
-
-            // 生成多個碎片。破碎碎片（`.kana-shard`）可以由子彈擊中時目標假名的 `<span>` 生成。
-            const numShards = 10;
-            for (let i = 0; i < numShards; i++) {
-                const shard = document.createElement('div');
-                shard.className = 'kana-shard';
-                shard.textContent = shardText;
-                
-                // 子彈擊中點，目標假名的<span>位置。破碎碎片（`.kana-shard`）可以由子彈擊中時目標假名的 `<span>` 生成。碎片的 `<span>` 內容是假名文字，破碎樣式。
-                shard.style.left = rect.left + 'px';
-                shard.style.top = rect.top + 'px';
-                
-                // 將同一個文字碎片的 Unicode 標籤，破碎樣式
-                // 碎片將使用 animation 動畫抛散。碎片的 `<span>` 內容是假名文字，破碎樣式。我將添加碎片抛散效果。
-                // 碎片將使用 animation 動畫抛散
-                shard.style.fontFamily = 'Times New Roman, serif';
-                
-                // 碎片動畫變數：拋散軌跡、旋轉。碎片的 `<span>` 內容是假名文字，破碎樣式。
-                const angle = Math.random() * Math.PI * 2;
-                const distance = 200 + Math.random() * 200;
-                const x = Math.cos(angle) * distance;
-                const y = Math.sin(angle) * distance;
-                shard.style.setProperty('--shard-x', x + 'px');
-                shard.style.setProperty('--shard-y', y + 'px');
-                shard.style.setProperty('--shard-rotate', (Math.random() * 360 - 180) + 'deg');
-                
-                // 動畫：拋散散、淡出。碎片的 `<span>` 內容是假名文字，破碎樣式。碎片的 `<span>` 內容是假名文字，破碎樣式。碎片抛散完成後換題。
-                shard.style.animation = `shardScatter 0.3s ease-out forwards`;
-                
-                document.body.appendChild(shard);
-                
-                // 抛散完成後移除碎片
-                setTimeout(() => shard.remove(), 300);
-            }
-        }
-
-        function nextWord() {
-            // 修復：徹底清除暫停狀態與動畫 class，確保下一題動畫重新開始
-            wordContainer.style.animationPlayState = 'running'; 
-            
-            // 核心修改：徹底將 CSS Class 拔掉，讓 DOM 恢復到未放大的原始尺寸
-            wordContainer.className = '';
-            
-            hiddenInput.value = ''; matchCount = 0;
-            hiddenInput.focus();
-
-            currentWordIndex = Math.floor(Math.random() * vocabulary.length);
-            const word = vocabulary[currentWordIndex];
-            targetKana = word.reading;
-
-            document.getElementById('kanji-display').textContent = word.kanji;
-            // 重新產生假名 HTML 結構，確保文字顏色變回白色
-            kanaDisplay.innerHTML = targetKana.split('').map((c, i) => 
-                `<span id="char-${i}" class="kana-char ${i===0?'active':''}">${c}</span>`
-            ).join('');
-
-            updateFlickHint();
-
-            // 核心修改：動態計算放大比例，切齊螢幕左右
-            // 強制瀏覽器重繪，以抓取正確寬度
-            void wordContainer.offsetWidth; 
-            
-            let baseWidth = wordContainer.offsetWidth;
-            let maxWidth = window.innerWidth * 0.95; 
-            
-            let scaleFactor = 1.5; 
-            if (baseWidth > 0) {
-                scaleFactor = maxWidth / baseWidth;
-            }
-            // 設一個極限值防止短單字過大
-            scaleFactor = Math.min(scaleFactor, 3.5); 
-            
-            rootStyles.style.setProperty('--target-scale', scaleFactor);
-            
-            // 重啟逼近動畫
-            wordContainer.className = 'approaching';
-
-            timeLeft = currentDuration;
-            updateTimerBar();
-            clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                timeLeft -= 0.1; 
-                updateTimerBar();
-                if (timeLeft <= 0) showAnswer();
-            }, 100);
-        }
-
-        function updateTimerBar() {
-            const p = Math.max(0, (timeLeft / currentDuration) * 100);
-            document.getElementById('timer-bar').style.width = p + '%';
-            document.getElementById('timer-bar').style.backgroundColor = p < 30 ? '#ff4444' : '#00FF00';
-        }
-
-        function showAnswer() {
-            clearInterval(timerInterval);
-            // 當時間到時，停止動畫，讓文字卡在 100% 撞擊畫面的位置
-            wordContainer.style.animationPlayState = 'paused'; 
-            
-            document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
-            document.getElementById('final-score').textContent = `本次特訓擊破數：${score}`;
-            answerOverlay.style.display = 'flex';
-            hiddenInput.blur();
-        }
-
-        resizeLayout();
-    </script>
-</body>
-</html>
+            'あ': { key: 'あ', dir: '點擊', arrow: '', romaji: 'a' }, 'い': { key: 'あ', dir: '左滑', arrow: 'left', romaji: 'i' }, 'う': { key: 'あ', dir: '上滑', arrow: 'up', romaji: 'u' }, 'え': { key: 'あ', dir: '右滑', arrow: 'right', romaji: 'e' }, 'お': { key: 'あ', dir: '下滑', arrow: 'down', romaji: 'o' },
+            'か': { key: 'か', dir: '點擊', arrow: '', romaji: 'ka' }, 'き': { key: 'か', dir: '左滑', arrow: 'left', romaji: 'ki' }, 'く': { key: 'か', dir: '上滑', arrow: 'up', romaji: 'ku' }, 'け': { key: 'か', dir: '右滑', arrow: 'right', romaji: 'ke' }, 'こ': { key: 'か', dir: '下滑', arrow: 'down', romaji: 'ko' },
+            'さ': { key: 'さ', dir: '點擊', arrow: '', romaji: 'sa' }, 'し': { key: 'さ', dir: '左滑', arrow: 'left', romaji: 'shi' }, 'す': { key: 'さ', dir: '上滑', arrow: 'up', romaji: 'su' }, 'せ': { key: 'さ', dir: '右滑', arrow: 'right', romaji: 'se' }, 'そ': { key: 'さ', dir: '下滑', arrow: 'down', romaji: 'so' },
+            'た': { key: 'た', dir: '點擊', arrow: '', romaji: 'ta' }, 'ち': { key: 'た', dir: '左滑', arrow: 'left', romaji: 'chi' }, 'つ': { key: 'た', dir: '上滑', arrow: 'up', romaji: 'tsu' }, 'て': { key: 'た', dir: '右滑', arrow: 'right', romaji: 'te' }, 'と': { key: 'た', dir: '下滑', arrow: 'down', romaji: 'to' },
+            'な': { key: 'な', dir: '點擊', arrow: '', romaji: 'na' }, 'に': { key: 'な', dir: '左滑', arrow: 'left', romaji: 'ni' }, 'ぬ': { key: 'な', dir: '上滑', arrow: 'up', romaji: 'nu' }, 'ね': { key: 'な', dir: '右滑', arrow: 'right', romaji: 'ne' }, 'の': { key: 'な', dir: '下滑', arrow: 'down', romaji: 'no' },
+            'は': { key: 'は', dir: '點擊', arrow: '', romaji: 'ha' }, 'ひ': { key: 'は', dir: '左滑', arrow: 'left', romaji: 'hi' }, 'ふ': { key: 'は', dir: '上滑', arrow: 'up', romaji: 'fu' }, 'へ': { key: 'は', dir: '右滑', arrow: 'right', romaji: 'he' }, 'ほ': { key: 'は', dir: '下滑', arrow: 'down', romaji: 'ho' },
+            'ま': { key: 'ま', dir: '點擊', arrow: '', romaji: 'ma' }, 'み': { key: 'ま', dir: '左滑', arrow: 'left', romaji: 'mi' }, 'む': { key: 'ま', dir: '上滑', arrow: 'up', romaji: 'mu' }, 'め': { key: 'ま', dir: '右滑', arrow: 'right', romaji: 'me' }, 'も': { key: 'ま', dir: '下滑', arrow: 'down', romaji: 'mo' },
+            'や': { key: 'や', dir: '點擊', arrow: '', romaji: 'ya' }, 'ゆ': { key: 'や', dir: '上滑', arrow: 'up', romaji: 'yu' }, 'よ': { key: 'や', dir: '下滑', arrow: 'down', romaji: 'yo' }, 
+            'ら': { key: 'ら', dir: '點擊', arrow: '', romaji: 'ra' }, 'り': { key: 'ら', dir: '左滑', arrow: 'left', romaji: 'ri' }, 'る': { key: 'ら', dir: '上滑', arrow: 'up', romaji: 'ru' }, 'れ': { key: 'ら', dir: '右滑', arrow: 'right', romaji: 're' }, 'ろ': { key: 'ら', dir: '下滑', arrow: 'down', romaji: 'ro' },
+            'わ': { key: 'わ', dir: '點擊', arrow: '', romaji: 'wa' }, 'を': { key: 'わ', dir: '左滑', arrow: 'left', romaji: 'wo' }, 'ん': { key: 'わ', dir: '上滑', arrow: 'up', romaji: 'n' },
+            'ー': { key: 'わ', dir: '右滑', arrow: 'right', romaji: '-' },
+            'ゃ': { key: 'や', dir: '點擊', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', dir:
