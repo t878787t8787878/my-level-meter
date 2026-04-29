@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>第一人稱：日文假名擊破特訓</title>
+    <title>日文 Flick 肌肉記憶特訓</title>
     <style>
         body {
             margin: 0; padding: 0; background-color: #050510;
@@ -11,115 +11,116 @@
             overflow: hidden; touch-action: none;
         }
 
-        /* 鎖定在扣除鍵盤後的實際可視區域 */
         #visual-viewport-container {
             position: absolute; top: 0; left: 0;
-            width: 100%; height: 100vh; /* 預設值，會被 JS 覆寫 */
-            display: flex; justify-content: center; align-items: center;
+            width: 100%; height: 100vh;
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
             overflow: hidden;
         }
 
-        /* 3D 雲霄飛車隧道背景 */
+        /* 3D 隧道背景 */
         #tunnel {
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             perspective: 600px; z-index: -1;
         }
-
         .tunnel-grid {
             position: absolute; top: 50%; left: -50%; width: 200%; height: 200%;
-            /* 霓虹網格線 */
             background: 
-                linear-gradient(transparent 0%, rgba(0, 255, 255, 0.4) 2%, transparent 4%),
-                linear-gradient(90deg, transparent 0%, rgba(0, 255, 255, 0.4) 2%, transparent 4%);
-            background-size: 80px 80px;
-            transform-origin: top center;
-            transform: rotateX(80deg);
-            animation: moveForward 0.5s linear infinite;
+                linear-gradient(transparent 0%, rgba(0, 255, 255, 0.2) 2%, transparent 4%),
+                linear-gradient(90deg, transparent 0%, rgba(0, 255, 255, 0.2) 2%, transparent 4%);
+            background-size: 60px 60px;
+            transform-origin: top center; transform: rotateX(80deg);
+            animation: moveForward 0.4s linear infinite;
         }
+        @keyframes moveForward { from { background-position: 0 0; } to { background-position: 0 60px; } }
 
-        @keyframes moveForward {
-            from { background-position: 0 0; }
-            to { background-position: 0 80px; }
-        }
-
-        /* 題目（障礙物）容器 */
+        /* 題目容器 */
         #word-container {
             position: relative; display: flex; flex-direction: column; align-items: center;
-            /* 讓障礙物看起來像在 3D 空間中 */
-            transform-style: preserve-3d;
+            transform-style: preserve-3d; margin-top: -50px;
         }
-
-        .approaching {
-            animation: zoomIn 10s linear forwards;
-        }
-
-        /* 障礙物逼近的視角變化 */
+        .approaching { animation: zoomIn 12s linear forwards; }
         @keyframes zoomIn {
-            0% { transform: scale(0.1) translateY(-200px); opacity: 0; filter: blur(5px); }
-            10% { opacity: 1; filter: blur(0px); }
-            90% { transform: scale(1.5) translateY(0px); opacity: 1; filter: drop-shadow(0 0 20px rgba(255,0,0,0.5)); }
-            100% { transform: scale(2) translateY(50px); opacity: 0; }
+            0% { transform: scale(0.1) translateY(-200px); opacity: 0; }
+            5% { opacity: 1; }
+            95% { transform: scale(1.4) translateY(0px); opacity: 1; }
+            100% { transform: scale(1.6) translateY(50px); opacity: 0; }
         }
-
-        /* 過關時的爆破特效 */
-        .exploding {
-            animation: explode 0.4s ease-out forwards;
-        }
-
+        .exploding { animation: explode 0.3s ease-out forwards; }
         @keyframes explode {
-            0% { transform: scale(1.5); filter: brightness(1) drop-shadow(0 0 20px #00FFFF); opacity: 1; }
-            50% { transform: scale(2.5); filter: brightness(3) drop-shadow(0 0 50px #00FFFF); opacity: 0.8; }
-            100% { transform: scale(3); filter: brightness(0); opacity: 0; }
+            0% { transform: scale(1.4); filter: brightness(2); opacity: 1; }
+            100% { transform: scale(2.5); filter: brightness(0); opacity: 0; }
         }
 
-        #kanji-display { font-size: 2.5rem; color: #aaa; margin-bottom: 10px; text-shadow: 2px 2px 4px #000; }
-        #kana-display { font-size: 4rem; font-weight: bold; color: #fff; display: flex; gap: 5px; }
+        #kanji-display { font-size: 1.8rem; color: #888; margin-bottom: 10px; }
+        #kana-display { font-size: 4.5rem; font-weight: bold; color: #fff; display: flex; gap: 8px; }
 
         .kana-char {
-            display: inline-block; transition: transform 0.1s;
-            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3), 3px 3px 6px #000;
+            display: inline-block; transition: all 0.2s;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.2), 3px 3px 6px #000;
+        }
+        .kana-char.correct { color: #00FF00; text-shadow: 0 0 20px #00FF00; transform: scale(1.1); }
+        .kana-char.active { color: #00FFFF; text-shadow: 0 0 15px #00FFFF; border-bottom: 4px solid #00FFFF; }
+
+        /* Flick 指引面板 */
+        #flick-hint-panel {
+            position: absolute; bottom: 20px;
+            width: 90%; max-width: 350px;
+            background: rgba(0, 20, 40, 0.8);
+            border: 2px solid #00FFFF; border-radius: 15px;
+            padding: 15px; display: flex; align-items: center;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            z-index: 60;
         }
 
-        .kana-char.correct {
-            color: #00FF00; text-shadow: 0 0 20px #00FF00, 0 0 40px #00FF00;
-            transform: scale(1.2);
+        #flick-key-icon {
+            width: 60px; height: 60px;
+            background: #111; border: 2px solid #fff; border-radius: 8px;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 1.8rem; font-weight: bold; margin-right: 20px;
+            position: relative;
         }
 
-        /* 飛行的文字子彈 */
+        /* 箭頭指示 */
+        .arrow {
+            position: absolute; font-size: 1.5rem; color: #555;
+            transition: color 0.2s, transform 0.2s;
+        }
+        .arrow.active-arrow { color: #FFD700; transform: scale(1.5); text-shadow: 0 0 10px #FFD700; }
+        .arrow-up { top: -25px; } .arrow-down { bottom: -25px; }
+        .arrow-left { left: -25px; } .arrow-right { right: -25px; }
+
+        #flick-text-hint { flex: 1; font-size: 1.2rem; line-height: 1.4; }
+        #flick-text-hint b { color: #FFD700; font-size: 1.5rem; }
+
+        /* 其他 UI */
         .bullet {
-            position: fixed; z-index: 50;
-            font-size: 3rem; font-weight: bold; color: #00FFFF;
-            text-shadow: 0 0 15px #00FFFF, 0 0 30px #00FFFF;
-            pointer-events: none; /* 防止干擾點擊 */
-            transform: translate(-50%, -50%) scale(0.5);
-            /* 飛行軌跡的貝茲曲線，讓它有一種射擊的加速感 */
-            transition: left 0.15s ease-in, top 0.15s ease-in, transform 0.15s ease-in, opacity 0.15s ease-out;
+            position: fixed; z-index: 50; font-size: 2.5rem; color: #00FFFF;
+            text-shadow: 0 0 15px #00FFFF; pointer-events: none;
+            transform: translate(-50%, -50%); transition: all 0.15s ease-in;
         }
 
         @keyframes shake {
-            0%, 100% { transform: translateX(0); color: #fff; }
-            20%, 60% { transform: translateX(-15px); color: #FF0000; text-shadow: 0 0 20px red; }
-            40%, 80% { transform: translateX(15px); color: #FF0000; }
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); color: #ff4444; }
+            75% { transform: translateX(10px); color: #ff4444; }
         }
-        .shake { animation: shake 0.3s ease-in-out; }
+        .shake { animation: shake 0.2s ease-in-out 2; }
 
-        #timer-bar-container { position: absolute; top: 0; left: 0; width: 100%; height: 8px; background-color: #222; z-index: 10; }
-        #timer-bar { height: 100%; width: 100%; background-color: #00FF00; transition: width 1s linear, background-color 0.5s; }
+        #timer-bar-container { position: absolute; top: 0; left: 0; width: 100%; height: 6px; background-color: #222; }
+        #timer-bar { height: 100%; width: 100%; background-color: #00FF00; transition: width 1s linear; }
 
-        #hidden-input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; border: none; }
+        #hidden-input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
 
         .overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(5,5,16,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 100; text-align: center; padding: 20px;
+            background: rgba(5,5,15,0.95); display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 100; padding: 30px;
         }
-        
-        .overlay h1 { font-size: 2.5rem; color: #00FFFF; text-shadow: 0 0 10px #00FFFF; margin-bottom: 20px; }
-        .overlay p { font-size: 1.2rem; color: #ccc; margin-bottom: 30px; line-height: 1.5; }
-        button { padding: 15px 40px; font-size: 1.5rem; border: 2px solid #00FFFF; border-radius: 8px; background-color: transparent; color: #00FFFF; cursor: pointer; font-weight: bold; text-shadow: 0 0 5px #00FFFF; box-shadow: 0 0 10px rgba(0,255,255,0.5), inset 0 0 10px rgba(0,255,255,0.5); }
-        button:active { background-color: #00FFFF; color: #000; }
-        
-        #resume-overlay, #answer-overlay { display: none; }
+        button {
+            padding: 15px 40px; font-size: 1.4rem; border: 2px solid #00FFFF; border-radius: 50px;
+            background: transparent; color: #00FFFF; font-weight: bold; cursor: pointer;
+        }
     </style>
 </head>
 <body>
@@ -128,254 +129,220 @@
 
     <div id="visual-viewport-container">
         <div id="tunnel"><div class="tunnel-grid"></div></div>
-
         <div id="timer-bar-container"><div id="timer-bar"></div></div>
 
         <div id="word-container">
             <div id="kanji-display">--</div>
             <div id="kana-display"></div>
         </div>
+
+        <div id="flick-hint-panel">
+            <div id="flick-key-icon">
+                <span id="key-main-char">あ</span>
+                <span class="arrow arrow-up">▲</span>
+                <span class="arrow arrow-down">▼</span>
+                <span class="arrow arrow-left">◀</span>
+                <span class="arrow arrow-right">▶</span>
+            </div>
+            <div id="flick-text-hint">
+                請按住 <b id="hint-key">あ</b><br>往 <b id="hint-dir">中心</b> 滑動
+            </div>
+        </div>
     </div>
 
     <div id="start-overlay" class="overlay">
-        <h1>假名空間擊破特訓</h1>
-        <p>準備好你的日文鍵盤。<br>鍵盤會自動彈出，<br>請在撞上單字前將其擊碎！</p>
-        <button onclick="initGame()">啟動引擎</button>
+        <h1 style="color:#00FFFF">Flick 肌肉記憶特訓</h1>
+        <p style="text-align:center; line-height:1.6">請使用手機的「日文九宮格鍵盤」。<br>觀察下方的指引面板，<br>在單字撞上你之前擊破它們！</p>
+        <button onclick="initGame()">啟動系統</button>
     </div>
 
-    <div id="resume-overlay" class="overlay" onclick="resumeGame()">
-        <h1>失去動力</h1>
-        <p>偵測到鍵盤已收起</p>
-        <button>點擊重新連接</button>
-    </div>
-
-    <div id="answer-overlay" class="overlay">
-        <h1 id="answer-text" style="color:#FF0055; text-shadow: 0 0 10px #FF0055;">護盾受損！</h1>
-        <p id="answer-detail">--</p>
-        <button onclick="nextWord()" style="border-color:#FF0055; color:#FF0055;">繼續前進</button>
+    <div id="answer-overlay" class="overlay" style="display:none">
+        <h1 style="color:#ff4444">撞擊！護盾受損</h1>
+        <p id="answer-detail" style="font-size:1.5rem"></p>
+        <button onclick="nextWord()">修復並繼續</button>
     </div>
 
     <script>
-        // 適應手機鍵盤的核心邏輯
-        const vpContainer = document.getElementById('visual-viewport-container');
-        
-        function resizeLayout() {
-            if (window.visualViewport) {
-                // 將容器高度設為扣除鍵盤後的實際高度
-                vpContainer.style.height = window.visualViewport.height + 'px';
-                // 防止 iOS Safari 的詭異捲動行為，將容器推移到可視範圍頂部
-                vpContainer.style.top = window.visualViewport.offsetTop + 'px';
-            }
-        }
+        // Flick 鍵盤映射表 (平假名與片假名通用)
+        const flickMap = {
+            'あ': { key: 'あ', dir: '中心', arrow: '' }, 'い': { key: 'あ', dir: '左', arrow: 'left' }, 'う': { key: 'あ', dir: '上', arrow: 'up' }, 'え': { key: 'あ', dir: '右', arrow: 'right' }, 'お': { key: 'あ', dir: '下', arrow: 'down' },
+            'か': { key: 'か', dir: '中心', arrow: '' }, 'き': { key: 'か', dir: '左', arrow: 'left' }, 'く': { key: 'か', dir: '上', arrow: 'up' }, 'け': { key: 'か', dir: '右', arrow: 'right' }, 'こ': { key: 'か', dir: '下', arrow: 'down' },
+            'さ': { key: 'さ', dir: '中心', arrow: '' }, 'し': { key: 'さ', dir: '左', arrow: 'left' }, 'す': { key: 'さ', dir: '上', arrow: 'up' }, 'せ': { key: 'さ', dir: '右', arrow: 'right' }, 'そ': { key: 'さ', dir: '下', arrow: 'down' },
+            'た': { key: 'た', dir: '中心', arrow: '' }, 'ち': { key: 'た', dir: '左', arrow: 'left' }, 'つ': { key: 'た', dir: '上', arrow: 'up' }, 'て': { key: 'た', dir: '右', arrow: 'right' }, 'と': { key: 'た', dir: '下', arrow: 'down' },
+            'な': { key: 'な', dir: '中心', arrow: '' }, 'に': { key: 'な', dir: '左', arrow: 'left' }, 'ぬ': { key: 'な', dir: '上', arrow: 'up' }, 'ね': { key: 'な', dir: '右', arrow: 'right' }, 'の': { key: 'な', dir: '下', arrow: 'down' },
+            'は': { key: 'は', dir: '中心', arrow: '' }, 'ひ': { key: 'は', dir: '左', arrow: 'left' }, 'ふ': { key: 'は', dir: '上', arrow: 'up' }, 'へ': { key: 'は', dir: '右', arrow: 'right' }, 'ほ': { key: 'は', dir: '下', arrow: 'down' },
+            'ま': { key: 'ま', dir: '中心', arrow: '' }, 'み': { key: 'ま', dir: '左', arrow: 'left' }, 'む': { key: 'ま', dir: '上', arrow: 'up' }, 'め': { key: 'ま', dir: '右', arrow: 'right' }, 'も': { key: 'ま', dir: '下', arrow: 'down' },
+            'や': { key: 'や', dir: '中心', arrow: '' }, 'ゆ': { key: 'や', dir: '上', arrow: 'up' }, 'よ': { key: 'や', dir: '下', arrow: 'down' },
+            'ら': { key: 'ら', dir: '中心', arrow: '' }, 'り': { key: 'ら', dir: '左', arrow: 'left' }, 'る': { key: 'ら', dir: '上', arrow: 'up' }, 'れ': { key: 'ら', dir: '右', arrow: 'right' }, 'ろ': { key: 'ら', dir: '下', arrow: 'down' },
+            'わ': { key: 'わ', dir: '中心', arrow: '' }, 'を': { key: 'わ', dir: '左', arrow: 'left' }, 'ん': { key: 'わ', dir: '上', arrow: 'up' },
+            'ー': { key: 'わ', dir: '右', arrow: 'right' },
+            // 濁音處理：導向其母音按鍵
+            'が': { key: 'か', dir: '中心', arrow: '' }, 'ぎ': { key: 'か', dir: '左', arrow: 'left' }, 'ぐ': { key: 'か', dir: '上', arrow: 'up' }, 'げ': { key: 'か', dir: '右', arrow: 'right' }, 'ご': { key: 'か', dir: '下', arrow: 'down' },
+            'ざ': { key: 'さ', dir: '中心', arrow: '' }, 'じ': { key: 'さ', dir: '左', arrow: 'left' }, 'ず': { key: 'さ', dir: '上', arrow: 'up' }, 'ぜ': { key: 'さ', dir: '右', arrow: 'right' }, 'ぞ': { key: 'さ', dir: '下', arrow: 'down' },
+            'だ': { key: 'た', dir: '中心', arrow: '' }, 'ぢ': { key: 'た', dir: '左', arrow: 'left' }, 'づ': { key: 'た', dir: '上', arrow: 'up' }, 'で': { key: 'た', dir: '右', arrow: 'right' }, 'ど': { key: 'た', dir: '下', arrow: 'down' },
+            'ば': { key: 'は', dir: '中心', arrow: '' }, 'び': { key: 'は', dir: '左', arrow: 'left' }, 'ぶ': { key: 'は', dir: '上', arrow: 'up' }, 'べ': { key: 'は', dir: '右', arrow: 'right' }, 'ぼ': { key: 'は', dir: '下', arrow: 'down' },
+            'ぱ': { key: 'は', dir: '中心', arrow: '' }, 'ぴ': { key: 'は', dir: '左', arrow: 'left' }, 'ぷ': { key: 'は', dir: '上', arrow: 'up' }, 'ぺ': { key: 'は', dir: '右', arrow: 'right' }, 'ぽ': { key: 'は', dir: '下', arrow: 'down' }
+        };
 
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', resizeLayout);
-            window.visualViewport.addEventListener('scroll', resizeLayout);
-            resizeLayout(); // 初始化
-        }
-
+        // 大量短單字題庫
         const vocabulary = [
-            { kanji: "東京", reading: "とうきょう" },
-            { kanji: "地下鉄", reading: "ちかてつ" },
-            { kanji: "荷物", reading: "にもつ" },
-            { kanji: "迷宮", reading: "めいきゅう" },
-            { kanji: "暗号", reading: "あんごう" },
-            { kanji: "改札口", reading: "かいさつぐち" },
-            { kanji: "切符", reading: "きっぷ" },
-            { kanji: "秋葉原", reading: "あきはばら" },
-            { kanji: "新宿", reading: "しんじゅく" }
+            { kanji: "壽司", reading: "すし" }, { kanji: "拉麵", reading: "らーめん" }, { kanji: "車站", reading: "えき" },
+            { kanji: "地下鐵", reading: "ちかてつ" }, { kanji: "地圖", reading: "ちず" }, { kanji: "藥妝店", reading: "くすり" },
+            { kanji: "行李", reading: "にもつ" }, { kanji: "飯店", reading: "ほてる" }, { kanji: "滑雪", reading: "すきー" },
+            { kanji: "東京", reading: "とうきょう" }, { kanji: "燒肉", reading: "やきにく" }, { kanji: "便利商店", reading: "こんびに" },
+            { kanji: "相機", reading: "かめら" }, { kanji: "雨傘", reading: "かさ" }, { kanji: "出口", reading: "でぐち" },
+            { kanji: "入口", reading: "いりぐち" }, { kanji: "改札口", reading: "かいさつ" }, { kanji: "硬幣", reading: "こいん" },
+            { kanji: "廁所", reading: "といれ" }, { kanji: "秘密", reading: "ひみつ" }, { kanji: "暗號", reading: "あんごう" }
         ];
 
         let currentWordIndex = -1;
         let timerInterval;
-        let timeLeft = 10;
+        let timeLeft = 12;
         let targetKana = "";
+        let matchCount = 0;
 
         const hiddenInput = document.getElementById('hidden-input');
-        const wordContainer = document.getElementById('word-container');
-        const kanjiDisplay = document.getElementById('kanji-display');
+        const vpContainer = document.getElementById('visual-viewport-container');
         const kanaDisplay = document.getElementById('kana-display');
-        const timerBar = document.getElementById('timer-bar');
-        
-        const startOverlay = document.getElementById('start-overlay');
-        const resumeOverlay = document.getElementById('resume-overlay');
-        const answerOverlay = document.getElementById('answer-overlay');
-        const answerDetail = document.getElementById('answer-detail');
+        const keyMainChar = document.getElementById('key-main-char');
+        const hintKey = document.getElementById('hint-key');
+        const hintDir = document.getElementById('hint-dir');
+
+        function resizeLayout() {
+            if (window.visualViewport) {
+                vpContainer.style.height = window.visualViewport.height + 'px';
+                vpContainer.style.top = window.visualViewport.offsetTop + 'px';
+            }
+        }
+        window.visualViewport.addEventListener('resize', resizeLayout);
 
         function toHiragana(str) {
-            return str.replace(/[\u30a1-\u30f6]/g, function(match) {
-                return String.fromCharCode(match.charCodeAt(0) - 0x60);
-            });
+            return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
         }
 
         function initGame() {
-            startOverlay.style.display = 'none';
+            document.getElementById('start-overlay').style.display = 'none';
             hiddenInput.focus();
             nextWord();
         }
 
-        function resumeGame() {
-            resumeOverlay.style.display = 'none';
-            hiddenInput.focus();
-        }
+        // 更新導航提示面板
+        function updateFlickHint() {
+            const char = targetKana[matchCount];
+            const hiraChar = toHiragana(char); // 轉換為平假名查找映射
+            const hint = flickMap[hiraChar] || { key: '?', dir: '未知', arrow: '' };
 
-        hiddenInput.addEventListener('blur', () => {
-            if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none') {
-                resumeOverlay.style.display = 'flex';
+            keyMainChar.textContent = hint.key;
+            hintKey.textContent = hint.key;
+            hintDir.textContent = hint.dir;
+
+            // 更新箭頭顏色
+            document.querySelectorAll('.arrow').forEach(a => a.classList.remove('active-arrow'));
+            if (hint.arrow) {
+                document.querySelector(`.arrow-${hint.arrow}`).classList.add('active-arrow');
             }
-        });
-
-        // 發射文字子彈的特效函數
-        function fireBullet(char, targetIndex) {
-            const bullet = document.createElement('div');
-            bullet.className = 'bullet';
-            bullet.textContent = char;
-            
-            // 子彈起點：畫面正下方（模擬鍵盤位置）
-            const startX = window.innerWidth / 2;
-            const startY = window.visualViewport ? window.visualViewport.height : window.innerHeight;
-            
-            bullet.style.left = startX + 'px';
-            bullet.style.top = startY + 'px';
-            document.body.appendChild(bullet);
-
-            // 目標終點：畫面上對應的假名字母中心位置
-            const targetSpan = document.getElementById(`char-${targetIndex}`);
-            const rect = targetSpan.getBoundingClientRect();
-            const endX = rect.left + rect.width / 2;
-            const endY = rect.top + rect.height / 2;
-
-            // 強制瀏覽器重繪，讓 transition 生效
-            void bullet.offsetWidth;
-
-            // 啟動飛行
-            bullet.style.left = endX + 'px';
-            bullet.style.top = endY + 'px';
-            bullet.style.transform = 'translate(-50%, -50%) scale(1.5)';
-            bullet.style.opacity = '0'; // 擊中時淡出
-
-            // 飛行時間結束後，點亮目標字母並移除子彈
-            setTimeout(() => {
-                bullet.remove();
-                targetSpan.classList.add('correct');
-            }, 150); // 150毫秒的極速射擊感
         }
 
         hiddenInput.addEventListener('input', function() {
-            if (currentWordIndex === -1) return;
+            let inputVal = toHiragana(hiddenInput.value);
+            
+            // 逐字比對
+            if (inputVal.length > matchCount) {
+                let lastChar = inputVal[inputVal.length - 1];
+                let targetChar = toHiragana(targetKana[matchCount]);
 
-            let currentInput = toHiragana(hiddenInput.value);
-            let matchCount = 0;
-
-            for (let i = 0; i < currentInput.length; i++) {
-                if (i < targetKana.length && currentInput[i] === targetKana[i]) {
+                if (lastChar === targetChar) {
+                    // 打對了：發射子彈
+                    fireBullet(targetKana[matchCount], matchCount);
                     matchCount++;
+                    
+                    // 更新畫面的當前目標狀態
+                    document.querySelectorAll('.kana-char').forEach((s, idx) => {
+                        if (idx < matchCount) s.className = 'kana-char correct';
+                        else if (idx === matchCount) s.className = 'kana-char active';
+                    });
+
+                    if (matchCount === targetKana.length) {
+                        clearAndExplode();
+                    } else {
+                        updateFlickHint();
+                    }
                 } else {
-                    break; 
-                }
-            }
-
-            // 檢查是否剛剛打對了一個新字
-            // 如果輸入長度等於 matchCount，代表剛打的字是對的，觸發射擊！
-            if (currentInput.length === matchCount && matchCount > 0) {
-                // 檢查這個字是不是還沒被點亮（避免重複觸發）
-                const targetSpan = document.getElementById(`char-${matchCount - 1}`);
-                if (!targetSpan.classList.contains('correct')) {
-                    fireBullet(currentInput[matchCount - 1], matchCount - 1);
-                }
-            }
-
-            // 判斷是否全部打對 (過關：觸發爆破特效)
-            if (matchCount === targetKana.length) {
-                hiddenInput.value = ""; 
-                clearInterval(timerInterval); // 停止計時
-                
-                // 停止逼近動畫，改為爆破動畫
-                wordContainer.classList.remove('approaching');
-                void wordContainer.offsetWidth;
-                wordContainer.classList.add('exploding');
-                
-                // 爆破動畫結束後換下一題
-                setTimeout(() => {
-                    nextWord();
-                }, 400);
-                return;
-            }
-
-            // 判斷是否有打錯字
-            if (currentInput.length > matchCount) {
-                if (matchCount < targetKana.length) {
+                    // 打錯了：震動
                     const errorSpan = document.getElementById(`char-${matchCount}`);
                     errorSpan.classList.remove('shake');
-                    void errorSpan.offsetWidth; 
+                    void errorSpan.offsetWidth;
                     errorSpan.classList.add('shake');
                 }
-                // 自動刪除錯誤字元
+                // 始終保持 input value 為已匹配的部分，強制玩家重新輸入下一個字
                 hiddenInput.value = targetKana.substring(0, matchCount);
             }
         });
 
+        function fireBullet(char, idx) {
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet';
+            bullet.textContent = char;
+            const startY = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            bullet.style.left = '50%'; bullet.style.top = startY + 'px';
+            document.body.appendChild(bullet);
+
+            const rect = document.getElementById(`char-${idx}`).getBoundingClientRect();
+            void bullet.offsetWidth;
+            bullet.style.left = (rect.left + rect.width/2) + 'px';
+            bullet.style.top = (rect.top + rect.height/2) + 'px';
+            bullet.style.opacity = '0';
+            setTimeout(() => bullet.remove(), 150);
+        }
+
+        function clearAndExplode() {
+            clearInterval(timerInterval);
+            document.getElementById('word-container').className = 'exploding';
+            setTimeout(nextWord, 400);
+        }
+
         function nextWord() {
-            answerOverlay.style.display = 'none';
-            resumeOverlay.style.display = 'none';
-            hiddenInput.value = ''; 
+            document.getElementById('answer-overlay').style.display = 'none';
+            document.getElementById('word-container').className = 'approaching';
+            hiddenInput.value = ''; matchCount = 0;
             hiddenInput.focus();
-            
-            // 隨機抽選，但不與上一題重複
-            let nextIndex;
-            do {
-                nextIndex = Math.floor(Math.random() * vocabulary.length);
-            } while (nextIndex === currentWordIndex && vocabulary.length > 1);
-            currentWordIndex = nextIndex;
 
-            const currentObj = vocabulary[currentWordIndex];
-            targetKana = currentObj.reading;
-            
-            kanjiDisplay.textContent = currentObj.kanji;
-            kanaDisplay.innerHTML = "";
-            for (let i = 0; i < targetKana.length; i++) {
-                const span = document.createElement('span');
-                span.id = `char-${i}`;
-                span.className = 'kana-char';
-                span.textContent = targetKana[i];
-                kanaDisplay.appendChild(span);
-            }
-            
-            // 重啟逼近動畫
-            wordContainer.classList.remove('exploding');
-            wordContainer.classList.remove('approaching');
-            void wordContainer.offsetWidth;
-            wordContainer.classList.add('approaching');
+            currentWordIndex = Math.floor(Math.random() * vocabulary.length);
+            const word = vocabulary[currentWordIndex];
+            targetKana = word.reading;
 
-            // 重啟計時
-            timeLeft = 10;
+            document.getElementById('kanji-display').textContent = word.kanji;
+            kanaDisplay.innerHTML = targetKana.split('').map((c, i) => 
+                `<span id="char-${i}" class="kana-char ${i===0?'active':''}">${c}</span>`
+            ).join('');
+
+            updateFlickHint();
+
+            timeLeft = 12;
             updateTimerBar();
             clearInterval(timerInterval);
             timerInterval = setInterval(() => {
                 timeLeft--;
                 updateTimerBar();
-                if (timeLeft <= 0) {
-                    showAnswer();
-                }
+                if (timeLeft <= 0) showAnswer();
             }, 1000);
         }
 
         function updateTimerBar() {
-            const percentage = (timeLeft / 10) * 100;
-            timerBar.style.width = percentage + '%';
-            if (timeLeft > 5) timerBar.style.backgroundColor = '#00FF00';
-            else if (timeLeft > 2) timerBar.style.backgroundColor = '#FFA500';
-            else timerBar.style.backgroundColor = '#FF0055';
+            const p = (timeLeft / 12) * 100;
+            document.getElementById('timer-bar').style.width = p + '%';
+            document.getElementById('timer-bar').style.backgroundColor = p < 30 ? '#ff4444' : '#00FF00';
         }
 
         function showAnswer() {
             clearInterval(timerInterval);
-            wordContainer.classList.remove('approaching');
-            const currentObj = vocabulary[currentWordIndex];
-            answerDetail.innerHTML = `正確密碼: <br><span style="color:#00FF00; font-size:2rem; font-weight:bold;">${currentObj.reading}</span>`;
-            answerOverlay.style.display = 'flex';
-            hiddenInput.blur(); 
+            document.getElementById('word-container').className = '';
+            document.getElementById('answer-detail').innerHTML = `正確讀音：<b style="color:#00FF00">${targetKana}</b>`;
+            document.getElementById('answer-overlay').style.display = 'flex';
+            hiddenInput.blur();
         }
+
+        resizeLayout();
     </script>
 </body>
 </html>
