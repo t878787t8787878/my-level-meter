@@ -2,117 +2,287 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>鏡頭顏色辨識測試</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>50音極限手寫特訓</title>
     <style>
         body {
             margin: 0;
+            padding: 0;
+            background-color: #111;
+            color: white;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
+            height: 100vh;
+        }
+
+        #game-screen {
+            flex: 1;
+            position: relative;
+            display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            background-color: #f0f0f0;
-            font-family: sans-serif;
+            background: radial-gradient(circle, #333 0%, #000 100%);
+            overflow: hidden;
+            perspective: 1000px;
         }
 
-        /* 顯示辨識結果的區塊 */
-        #color-display {
-            width: 200px;
-            height: 200px;
-            border-radius: 50%;
-            border: 5px solid #fff;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-            margin-bottom: 20px;
-            transition: background-color 0.1s;
-        }
-
-        #hex-code {
-            font-size: 24px;
+        #word-container {
+            position: absolute;
+            font-size: 4rem;
             font-weight: bold;
-            color: #333;
+            color: #FFD700;
+            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 2px 2px 5px #000;
+            transform: scale(0.1) translateZ(-500px);
+            opacity: 0;
         }
 
-        /* 隱藏必要的視訊與畫布元素 */
-        video, canvas {
-            display: none;
+        /* 題目逼近的動畫 */
+        .approaching {
+            animation: zoomIn 10s linear forwards;
+        }
+
+        @keyframes zoomIn {
+            0% { transform: scale(0.1) translateZ(-500px); opacity: 0; }
+            10% { opacity: 1; }
+            90% { transform: scale(2.5) translateZ(200px); opacity: 1; }
+            100% { transform: scale(3) translateZ(300px); opacity: 0; }
+        }
+
+        #timer-bar-container {
+            width: 100%;
+            height: 10px;
+            background-color: #333;
+        }
+
+        #timer-bar {
+            height: 100%;
+            width: 100%;
+            background-color: #00FF00;
+            transition: width 1s linear, background-color 0.5s;
+        }
+
+        #ui-area {
+            height: 45vh; /* 給予手寫區足夠的空間 */
+            background-color: #222;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        #controls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            max-width: 400px;
+            margin-bottom: 10px;
         }
 
         button {
             padding: 10px 20px;
-            font-size: 16px;
-            cursor: pointer;
-            background-color: #007bff;
-            color: white;
+            font-size: 1rem;
             border: none;
             border-radius: 5px;
+            background-color: #4CAF50;
+            color: white;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        
+        button.clear-btn { background-color: #f44336; }
+        button.check-btn { background-color: #2196F3; }
+
+        canvas {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+            touch-action: none; /* 防止手機滑動 */
+            cursor: crosshair;
+        }
+
+        #answer-overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+
+        #answer-text {
+            font-size: 3rem;
+            color: #fff;
+            margin-bottom: 20px;
         }
     </style>
 </head>
 <body>
 
-    <div id="color-display"></div>
-    <div id="hex-code">點擊按鈕開始</div>
-    <button id="start-btn">開啟鏡頭辨識</button>
+    <div id="game-screen">
+        <div id="word-container">準備</div>
+        
+        <div id="answer-overlay">
+            <div id="answer-text">解答: --</div>
+            <button onclick="nextWord()" style="font-size: 1.5rem;">下一題</button>
+        </div>
+    </div>
 
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
+    <div id="timer-bar-container">
+        <div id="timer-bar"></div>
+    </div>
+
+    <div id="ui-area">
+        <div id="controls">
+            <button class="clear-btn" onclick="clearCanvas()">清除重寫</button>
+            <button class="check-btn" onclick="showAnswer()">看解答</button>
+        </div>
+        <canvas id="drawing-board"></canvas>
+    </div>
 
     <script>
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        const colorDisplay = document.getElementById('color-display');
-        const hexCode = document.getElementById('hex-code');
-        const startBtn = document.getElementById('start-btn');
+        // 題庫 (可以自行擴充，例如加入車站、壽司等旅行實用單字)
+        const vocabulary = [
+            { question: "蘋果", answer: "りんご" },
+            { question: "車站", answer: "えき" },
+            { question: "東京", answer: "とうきょう" },
+            { question: "新幹線", answer: "しんかんせん" },
+            { question: "相機", answer: "カメラ" },
+            { question: "飯店", answer: "ホテル" }
+        ];
 
-        startBtn.addEventListener('click', async () => {
-            try {
-                // 1. 請求開啟前鏡頭 (facingMode: 'user')
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: 'user' } 
-                });
-                video.srcObject = stream;
-                startBtn.style.display = 'none'; // 開始後隱藏按鈕
-                
-                // 2. 開始循環辨識
-                requestAnimationFrame(processFrame);
-            } catch (err) {
-                console.error("無法存取鏡頭: ", err);
-                hexCode.innerText = "請允許鏡頭存取權限";
-            }
-        });
+        let currentWordIndex = -1;
+        let timerInterval;
+        let timeLeft = 10;
 
-        function processFrame() {
-            if (video.readyState === video.HAVE_ENOUGH_DATA) {
-                // 設定畫布尺寸與影片一致
-                canvas.width = video.videoWidth;
-                canvas.height = video.videoHeight;
+        // Canvas 設定
+        const canvas = document.getElementById('drawing-board');
+        const ctx = canvas.getContext('2d');
+        const wordContainer = document.getElementById('word-container');
+        const timerBar = document.getElementById('timer-bar');
+        const answerOverlay = document.getElementById('answer-overlay');
+        const answerText = document.getElementById('answer-text');
 
-                // 將影片目前的畫面畫到隱藏的畫布上
-                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-                // 3. 取得中心點座標
-                const centerX = Math.floor(canvas.width / 2);
-                const centerY = Math.floor(canvas.height / 2);
-
-                // 4. 取得該像素的顏色數據 (RGBA)
-                const pixel = ctx.getImageData(centerX, centerY, 1, 1).data;
-                const r = pixel[0];
-                const g = pixel[1];
-                const b = pixel[2];
-
-                // 轉換為 Hex 字串
-                const hex = "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1).toUpperCase();
-
-                // 5. 更新 UI
-                colorDisplay.style.backgroundColor = hex;
-                hexCode.innerText = hex;
-            }
-
-            // 持續執行
-            requestAnimationFrame(processFrame);
+        // 調整 Canvas 大小以適應手機螢幕
+        function resizeCanvas() {
+            const uiArea = document.getElementById('ui-area');
+            canvas.width = window.innerWidth * 0.9;
+            canvas.height = uiArea.clientHeight - 70; // 扣除按鈕高度
+            // 設置筆觸樣式
+            ctx.lineWidth = 8;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#000';
         }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        // 繪圖變數與事件監聽
+        let isDrawing = false;
+
+        function startPosition(e) {
+            isDrawing = true;
+            draw(e);
+        }
+
+        function endPosition() {
+            isDrawing = false;
+            ctx.beginPath();
+        }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            e.preventDefault(); // 防止螢幕滾動
+
+            let clientX, clientY;
+            if (e.type.includes('touch')) {
+                clientX = e.touches[0].clientX;
+                clientY = e.touches[0].clientY;
+            } else {
+                clientX = e.clientX;
+                clientY = e.clientY;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = clientX - rect.left;
+            const y = clientY - rect.top;
+
+            ctx.lineTo(x, y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(x, y);
+        }
+
+        // 滑鼠事件
+        canvas.addEventListener('mousedown', startPosition);
+        canvas.addEventListener('mouseup', endPosition);
+        canvas.addEventListener('mousemove', draw);
+        // 觸控事件
+        canvas.addEventListener('touchstart', startPosition, {passive: false});
+        canvas.addEventListener('touchend', endPosition);
+        canvas.addEventListener('touchmove', draw, {passive: false});
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        // 遊戲邏輯
+        function startGame() {
+            nextWord();
+        }
+
+        function nextWord() {
+            answerOverlay.style.display = 'none';
+            clearCanvas();
+            
+            // 隨機挑選題目
+            currentWordIndex = Math.floor(Math.random() * vocabulary.length);
+            wordContainer.textContent = vocabulary[currentWordIndex].question;
+            
+            // 重置動畫
+            wordContainer.classList.remove('approaching');
+            void wordContainer.offsetWidth; // 觸發 reflow
+            wordContainer.classList.add('approaching');
+
+            // 重置計時器
+            timeLeft = 10;
+            updateTimerBar();
+            clearInterval(timerInterval);
+            timerInterval = setInterval(() => {
+                timeLeft--;
+                updateTimerBar();
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    showAnswer();
+                }
+            }, 1000);
+        }
+
+        function updateTimerBar() {
+            const percentage = (timeLeft / 10) * 100;
+            timerBar.style.width = percentage + '%';
+            
+            if (timeLeft > 5) {
+                timerBar.style.backgroundColor = '#00FF00'; // 綠
+            } else if (timeLeft > 2) {
+                timerBar.style.backgroundColor = '#FFA500'; // 橘
+            } else {
+                timerBar.style.backgroundColor = '#FF0000'; // 紅
+            }
+        }
+
+        function showAnswer() {
+            clearInterval(timerInterval);
+            wordContainer.classList.remove('approaching');
+            answerText.textContent = `解答: ${vocabulary[currentWordIndex].answer}`;
+            answerOverlay.style.display = 'flex';
+        }
+
+        // 初始化開始
+        setTimeout(startGame, 1000);
     </script>
 </body>
 </html>
