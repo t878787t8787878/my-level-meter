@@ -2,16 +2,18 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>日文滑動鍵盤極限特訓</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>日文滑動鍵盤極限特訓 - 逐字判定版</title>
     <style>
+        /* 使用 dvh 確保在手機鍵盤彈出時，畫面依然能完美適應剩餘空間 */
         body {
             margin: 0; padding: 0;
             background-color: #111; color: white;
             font-family: 'Arial', sans-serif;
             overflow: hidden;
             display: flex; flex-direction: column;
-            height: 100vh;
+            height: 100dvh; 
+            touch-action: none; /* 防止畫面被手動上下滑動 */
         }
 
         #game-screen {
@@ -21,88 +23,126 @@
             overflow: hidden; perspective: 1000px;
         }
 
-        /* 漢字與上方假名提示的排版 */
+        /* 題目容器的動畫設定 */
         #word-container {
             position: absolute;
-            font-size: 5rem;
-            font-weight: bold;
-            color: #FFD700;
-            text-shadow: 0 0 20px rgba(255, 215, 0, 0.8), 3px 3px 6px #000;
+            display: flex; flex-direction: column; align-items: center;
             transform: scale(0.1) translateZ(-500px);
             opacity: 0;
-            text-align: center;
-        }
-
-        ruby { ruby-align: center; }
-        rt { 
-            font-size: 2rem; 
-            color: #00FFFF; /* 提示字用亮藍色區分 */
-            text-shadow: 0 0 10px rgba(0, 255, 255, 0.8), 2px 2px 4px #000;
-            transform: translateY(-10px);
         }
 
         .approaching { animation: zoomIn 10s linear forwards; }
 
+        /* 考慮到鍵盤空間，稍微縮小最終放大的比例 */
         @keyframes zoomIn {
             0% { transform: scale(0.1) translateZ(-500px); opacity: 0; }
             10% { opacity: 1; }
-            90% { transform: scale(2.2) translateZ(100px); opacity: 1; }
-            100% { transform: scale(2.5) translateZ(200px); opacity: 0; }
+            90% { transform: scale(1.5) translateZ(100px); opacity: 1; }
+            100% { transform: scale(1.8) translateZ(200px); opacity: 0; }
         }
 
-        #timer-bar-container { width: 100%; height: 12px; background-color: #333; }
+        /* 漢字顯示區 */
+        #kanji-display {
+            font-size: 2.5rem;
+            color: #ccc;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px #000;
+        }
+
+        /* 假名顯示區 (玩家互動的重點) */
+        #kana-display {
+            font-size: 4rem;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.5), 3px 3px 6px #000;
+            display: flex;
+            gap: 5px;
+        }
+
+        /* 單個假名的樣式 */
+        .kana-char {
+            display: inline-block; /* 為了讓震動動畫生效 */
+            transition: color 0.1s, text-shadow 0.1s;
+        }
+
+        /* 打對的顏色 (螢光綠) */
+        .kana-char.correct {
+            color: #00FF00;
+            text-shadow: 0 0 20px rgba(0, 255, 0, 0.8), 2px 2px 4px #000;
+        }
+
+        /* 打錯時的震動動畫 */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); color: #fff; }
+            20% { transform: translateX(-15px); color: #FF0000; text-shadow: 0 0 20px red; }
+            40% { transform: translateX(15px); color: #FF0000; }
+            60% { transform: translateX(-10px); color: #FF0000; }
+            80% { transform: translateX(10px); color: #FF0000; }
+        }
+
+        .shake { animation: shake 0.4s ease-in-out; }
+
+        #timer-bar-container { width: 100%; height: 10px; background-color: #333; z-index: 10; }
         #timer-bar { height: 100%; width: 100%; background-color: #00FF00; transition: width 1s linear, background-color 0.5s; }
 
-        #ui-area {
-            height: 25vh; /* 縮小UI區域，留空間給手機彈出鍵盤 */
-            background-color: #222;
-            display: flex; flex-direction: column;
-            align-items: center; justify-content: center;
-            padding: 15px; box-sizing: border-box;
-            border-top: 2px solid #444;
+        /* 隱藏的輸入框，放在畫面最左上角防止畫面被捲動 */
+        #hidden-input {
+            position: absolute;
+            top: 0; left: 0;
+            width: 1px; height: 1px;
+            opacity: 0; border: none;
+            /* 不要用 display: none 或 pointer-events: none，否則無法喚出鍵盤 */
         }
 
-        #player-input {
-            width: 90%; max-width: 400px;
-            font-size: 2rem; text-align: center;
-            padding: 15px; border-radius: 10px;
-            border: 3px solid #555; background-color: #fff;
-            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
-            transition: border-color 0.2s;
-        }
-        
-        #player-input:focus { outline: none; border-color: #FFD700; }
-
-        #answer-overlay {
+        /* 各種互動覆蓋層 */
+        .overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85); display: none;
-            flex-direction: column; justify-content: center; align-items: center;
-            z-index: 10;
+            background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 20; text-align: center; padding: 20px;
         }
 
-        #answer-text { font-size: 3rem; color: #fff; margin-bottom: 30px; text-align: center; }
-        button { padding: 15px 30px; font-size: 1.5rem; border: none; border-radius: 8px; background-color: #E50914; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .overlay h1 { font-size: 2.5rem; color: #FFD700; margin-bottom: 20px; }
+        .overlay p { font-size: 1.2rem; color: #ccc; margin-bottom: 30px; line-height: 1.5; }
+        button { padding: 15px 40px; font-size: 1.5rem; border: none; border-radius: 8px; background-color: #E50914; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
         button:active { transform: translateY(2px); box-shadow: none; }
+        
+        #resume-overlay { display: none; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); }
+        #answer-overlay { display: none; }
     </style>
 </head>
 <body>
 
+    <input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+
     <div id="game-screen">
-        <div id="word-container">準備</div>
-        <div id="answer-overlay">
-            <div id="answer-text">解答: --</div>
-            <button onclick="nextWord()">下一題</button>
+        <div id="word-container">
+            <div id="kanji-display">--</div>
+            <div id="kana-display"></div>
         </div>
     </div>
 
     <div id="timer-bar-container"><div id="timer-bar"></div></div>
 
-    <div id="ui-area">
-        <input type="text" id="player-input" placeholder="點此輸入..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+    <div id="start-overlay" class="overlay">
+        <h1>日文極限打字特訓</h1>
+        <p>準備好你的手機日文鍵盤。<br>點擊下方按鈕後，鍵盤將自動彈出。<br>請根據出現的假名逐字輸入！</p>
+        <button onclick="initGame()">開始特訓</button>
+    </div>
+
+    <div id="resume-overlay" class="overlay" onclick="resumeGame()">
+        <h1>遊戲暫停</h1>
+        <p>偵測到鍵盤已收起</p>
+        <button>點擊畫面繼續</button>
+    </div>
+
+    <div id="answer-overlay" class="overlay">
+        <h1 id="answer-text">時間到！</h1>
+        <p id="answer-detail">--</p>
+        <button onclick="nextWord()">下一題</button>
     </div>
 
     <script>
-        // 題庫 (結合了旅遊、車站、滑雪與解謎常見字彙)
         const vocabulary = [
             { kanji: "東京", reading: "とうきょう" },
             { kanji: "地下鉄", reading: "ちかてつ" },
@@ -111,66 +151,143 @@
             { kanji: "滑雪", reading: "スキー" },
             { kanji: "謎解き", reading: "なぞとき" },
             { kanji: "迷宮", reading: "めいきゅう" },
-            { kanji: "暗號", reading: "あんごう" },
+            { kanji: "暗号", reading: "あんごう" },
             { kanji: "改札口", reading: "かいさつぐち" },
-            { kanji: "切符", reading: "きっぷ" }
+            { kanji: "切符", reading: "きっぷ" },
+            { kanji: "秋葉原", reading: "あきはばら" }
         ];
 
         let currentWordIndex = -1;
         let timerInterval;
         let timeLeft = 10;
+        let targetKana = "";
 
+        const hiddenInput = document.getElementById('hidden-input');
         const wordContainer = document.getElementById('word-container');
+        const kanjiDisplay = document.getElementById('kanji-display');
+        const kanaDisplay = document.getElementById('kana-display');
         const timerBar = document.getElementById('timer-bar');
+        
+        const startOverlay = document.getElementById('start-overlay');
+        const resumeOverlay = document.getElementById('resume-overlay');
         const answerOverlay = document.getElementById('answer-overlay');
         const answerText = document.getElementById('answer-text');
-        const playerInput = document.getElementById('player-input');
+        const answerDetail = document.getElementById('answer-detail');
 
-        // ★ 核心功能：將字串中的「片假名」全部轉換為「平假名」
+        // 片假名轉平假名
         function toHiragana(str) {
             return str.replace(/[\u30a1-\u30f6]/g, function(match) {
-                // 利用 Unicode 編碼差距，片假名 - 0x60 就會變成平假名
                 var chr = match.charCodeAt(0) - 0x60;
                 return String.fromCharCode(chr);
             });
         }
 
-        // 監聽輸入框變化 (即時判定)
-        playerInput.addEventListener('input', function() {
-            if (currentWordIndex === -1) return; // 遊戲還沒開始
-            
-            const targetAnswer = vocabulary[currentWordIndex].reading;
-            const currentInput = playerInput.value.trim();
+        // 初始化遊戲 (使用者第一次點擊)
+        function initGame() {
+            startOverlay.style.display = 'none';
+            hiddenInput.focus();
+            nextWord();
+        }
 
-            // 將答案與輸入都轉成平假名來比對 (這樣打 スキー 或 すきー 都算對)
-            if (toHiragana(currentInput) === toHiragana(targetAnswer)) {
-                // 答對了！直接進下一題
-                playerInput.style.backgroundColor = "#c8e6c9"; // 閃一下綠色
-                setTimeout(() => {
-                    playerInput.style.backgroundColor = "#fff";
-                    nextWord();
-                }, 200);
+        // 恢復遊戲 (如果玩家不小心把鍵盤收起來了)
+        function resumeGame() {
+            resumeOverlay.style.display = 'none';
+            hiddenInput.focus();
+        }
+
+        // 監聽輸入框失去焦點 (通常代表鍵盤被收起了)
+        hiddenInput.addEventListener('blur', () => {
+            if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none') {
+                resumeOverlay.style.display = 'flex';
             }
         });
 
-        // 遊戲邏輯
-        function startGame() { nextWord(); }
+        // 核心邏輯：逐字判斷
+        hiddenInput.addEventListener('input', function() {
+            if (currentWordIndex === -1) return;
+
+            let currentInput = toHiragana(hiddenInput.value);
+            let matchCount = 0;
+
+            // 1. 計算目前打對了幾個字
+            for (let i = 0; i < currentInput.length; i++) {
+                if (i < targetKana.length && currentInput[i] === targetKana[i]) {
+                    matchCount++;
+                } else {
+                    break; // 遇到第一個錯字就停止計算
+                }
+            }
+
+            // 2. 更新畫面上的字元顏色
+            for (let i = 0; i < targetKana.length; i++) {
+                const span = document.getElementById(`char-${i}`);
+                if (i < matchCount) {
+                    span.classList.add('correct');
+                } else {
+                    span.classList.remove('correct');
+                }
+            }
+
+            // 3. 判斷是否全部打對 (過關)
+            if (matchCount === targetKana.length) {
+                hiddenInput.value = ""; // 清空準備下一題
+                
+                // 整個單字變綠色閃爍一下，然後進入下一題
+                kanaDisplay.style.textShadow = "0 0 30px #00FF00";
+                setTimeout(() => {
+                    kanaDisplay.style.textShadow = "";
+                    nextWord();
+                }, 300);
+                return;
+            }
+
+            // 4. 判斷是否有打錯字
+            if (currentInput.length > matchCount) {
+                // 代表在 index 為 matchCount 的地方打錯了
+                if (matchCount < targetKana.length) {
+                    const errorSpan = document.getElementById(`char-${matchCount}`);
+                    
+                    // 重新觸發震動動畫的 CSS 技巧
+                    errorSpan.classList.remove('shake');
+                    void errorSpan.offsetWidth; // 觸發 reflow
+                    errorSpan.classList.add('shake');
+                }
+
+                // 【關鍵】自動刪除玩家打錯的那個字！
+                // 這樣玩家不需要按 Backspace，只要重新輸入正確的假名即可
+                hiddenInput.value = targetKana.substring(0, matchCount);
+            }
+        });
 
         function nextWord() {
             answerOverlay.style.display = 'none';
-            playerInput.value = ''; // 清空輸入框
-            playerInput.focus();    // 自動對焦，保持鍵盤開啟
+            resumeOverlay.style.display = 'none';
+            hiddenInput.value = ''; 
+            hiddenInput.focus();
             
             currentWordIndex = Math.floor(Math.random() * vocabulary.length);
             const currentObj = vocabulary[currentWordIndex];
+            targetKana = currentObj.reading;
             
-            // 組合帶有假名提示的 HTML
-            wordContainer.innerHTML = `<ruby>${currentObj.kanji}<rt>${currentObj.reading}</rt></ruby>`;
+            // 設定漢字
+            kanjiDisplay.textContent = currentObj.kanji;
             
+            // 動態產生假名的 <span> 標籤，用來獨立控制變色和震動
+            kanaDisplay.innerHTML = "";
+            for (let i = 0; i < targetKana.length; i++) {
+                const span = document.createElement('span');
+                span.id = `char-${i}`;
+                span.className = 'kana-char';
+                span.textContent = targetKana[i];
+                kanaDisplay.appendChild(span);
+            }
+            
+            // 重啟逼近動畫
             wordContainer.classList.remove('approaching');
-            void wordContainer.offsetWidth; // 觸發 reflow 重新播放動畫
+            void wordContainer.offsetWidth;
             wordContainer.classList.add('approaching');
 
+            // 重啟計時
             timeLeft = 10;
             updateTimerBar();
             clearInterval(timerInterval);
@@ -178,7 +295,6 @@
                 timeLeft--;
                 updateTimerBar();
                 if (timeLeft <= 0) {
-                    clearInterval(timerInterval);
                     showAnswer();
                 }
             }, 1000);
@@ -196,13 +312,11 @@
             clearInterval(timerInterval);
             wordContainer.classList.remove('approaching');
             const currentObj = vocabulary[currentWordIndex];
-            answerText.innerHTML = `時間到！<br>正解: ${currentObj.reading}`;
+            answerText.textContent = "時間到！";
+            answerDetail.innerHTML = `正解: <span style="color:#00FF00; font-weight:bold;">${currentObj.reading}</span>`;
             answerOverlay.style.display = 'flex';
-            playerInput.blur(); // 收起鍵盤
+            hiddenInput.blur(); // 暫時收起鍵盤
         }
-
-        // 畫面載入後 1 秒開始
-        setTimeout(startGame, 1000);
     </script>
 </body>
 </html>
