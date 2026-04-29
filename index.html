@@ -3,158 +3,187 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>日文滑動鍵盤極限特訓 - 逐字判定版</title>
+    <title>第一人稱：日文假名擊破特訓</title>
     <style>
-        /* 使用 dvh 確保在手機鍵盤彈出時，畫面依然能完美適應剩餘空間 */
         body {
-            margin: 0; padding: 0;
-            background-color: #111; color: white;
-            font-family: 'Arial', sans-serif;
-            overflow: hidden;
-            display: flex; flex-direction: column;
-            height: 100dvh; 
-            touch-action: none; /* 防止畫面被手動上下滑動 */
+            margin: 0; padding: 0; background-color: #050510;
+            color: white; font-family: 'Arial', sans-serif;
+            overflow: hidden; touch-action: none;
         }
 
-        #game-screen {
-            flex: 1; position: relative;
+        /* 鎖定在扣除鍵盤後的實際可視區域 */
+        #visual-viewport-container {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100vh; /* 預設值，會被 JS 覆寫 */
             display: flex; justify-content: center; align-items: center;
-            background: radial-gradient(circle, #2a2a35 0%, #000 100%);
-            overflow: hidden; perspective: 1000px;
+            overflow: hidden;
         }
 
-        /* 題目容器的動畫設定 */
+        /* 3D 雲霄飛車隧道背景 */
+        #tunnel {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            perspective: 600px; z-index: -1;
+        }
+
+        .tunnel-grid {
+            position: absolute; top: 50%; left: -50%; width: 200%; height: 200%;
+            /* 霓虹網格線 */
+            background: 
+                linear-gradient(transparent 0%, rgba(0, 255, 255, 0.4) 2%, transparent 4%),
+                linear-gradient(90deg, transparent 0%, rgba(0, 255, 255, 0.4) 2%, transparent 4%);
+            background-size: 80px 80px;
+            transform-origin: top center;
+            transform: rotateX(80deg);
+            animation: moveForward 0.5s linear infinite;
+        }
+
+        @keyframes moveForward {
+            from { background-position: 0 0; }
+            to { background-position: 0 80px; }
+        }
+
+        /* 題目（障礙物）容器 */
         #word-container {
-            position: absolute;
-            display: flex; flex-direction: column; align-items: center;
-            transform: scale(0.1) translateZ(-500px);
-            opacity: 0;
+            position: relative; display: flex; flex-direction: column; align-items: center;
+            /* 讓障礙物看起來像在 3D 空間中 */
+            transform-style: preserve-3d;
         }
 
-        .approaching { animation: zoomIn 10s linear forwards; }
+        .approaching {
+            animation: zoomIn 10s linear forwards;
+        }
 
-        /* 考慮到鍵盤空間，稍微縮小最終放大的比例 */
+        /* 障礙物逼近的視角變化 */
         @keyframes zoomIn {
-            0% { transform: scale(0.1) translateZ(-500px); opacity: 0; }
-            10% { opacity: 1; }
-            90% { transform: scale(1.5) translateZ(100px); opacity: 1; }
-            100% { transform: scale(1.8) translateZ(200px); opacity: 0; }
+            0% { transform: scale(0.1) translateY(-200px); opacity: 0; filter: blur(5px); }
+            10% { opacity: 1; filter: blur(0px); }
+            90% { transform: scale(1.5) translateY(0px); opacity: 1; filter: drop-shadow(0 0 20px rgba(255,0,0,0.5)); }
+            100% { transform: scale(2) translateY(50px); opacity: 0; }
         }
 
-        /* 漢字顯示區 */
-        #kanji-display {
-            font-size: 2.5rem;
-            color: #ccc;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px #000;
+        /* 過關時的爆破特效 */
+        .exploding {
+            animation: explode 0.4s ease-out forwards;
         }
 
-        /* 假名顯示區 (玩家互動的重點) */
-        #kana-display {
-            font-size: 4rem;
-            font-weight: bold;
-            color: #fff;
-            text-shadow: 0 0 15px rgba(255, 255, 255, 0.5), 3px 3px 6px #000;
-            display: flex;
-            gap: 5px;
+        @keyframes explode {
+            0% { transform: scale(1.5); filter: brightness(1) drop-shadow(0 0 20px #00FFFF); opacity: 1; }
+            50% { transform: scale(2.5); filter: brightness(3) drop-shadow(0 0 50px #00FFFF); opacity: 0.8; }
+            100% { transform: scale(3); filter: brightness(0); opacity: 0; }
         }
 
-        /* 單個假名的樣式 */
+        #kanji-display { font-size: 2.5rem; color: #aaa; margin-bottom: 10px; text-shadow: 2px 2px 4px #000; }
+        #kana-display { font-size: 4rem; font-weight: bold; color: #fff; display: flex; gap: 5px; }
+
         .kana-char {
-            display: inline-block; /* 為了讓震動動畫生效 */
-            transition: color 0.1s, text-shadow 0.1s;
+            display: inline-block; transition: transform 0.1s;
+            text-shadow: 0 0 10px rgba(255, 255, 255, 0.3), 3px 3px 6px #000;
         }
 
-        /* 打對的顏色 (螢光綠) */
         .kana-char.correct {
-            color: #00FF00;
-            text-shadow: 0 0 20px rgba(0, 255, 0, 0.8), 2px 2px 4px #000;
+            color: #00FF00; text-shadow: 0 0 20px #00FF00, 0 0 40px #00FF00;
+            transform: scale(1.2);
         }
 
-        /* 打錯時的震動動畫 */
+        /* 飛行的文字子彈 */
+        .bullet {
+            position: fixed; z-index: 50;
+            font-size: 3rem; font-weight: bold; color: #00FFFF;
+            text-shadow: 0 0 15px #00FFFF, 0 0 30px #00FFFF;
+            pointer-events: none; /* 防止干擾點擊 */
+            transform: translate(-50%, -50%) scale(0.5);
+            /* 飛行軌跡的貝茲曲線，讓它有一種射擊的加速感 */
+            transition: left 0.15s ease-in, top 0.15s ease-in, transform 0.15s ease-in, opacity 0.15s ease-out;
+        }
+
         @keyframes shake {
             0%, 100% { transform: translateX(0); color: #fff; }
-            20% { transform: translateX(-15px); color: #FF0000; text-shadow: 0 0 20px red; }
-            40% { transform: translateX(15px); color: #FF0000; }
-            60% { transform: translateX(-10px); color: #FF0000; }
-            80% { transform: translateX(10px); color: #FF0000; }
+            20%, 60% { transform: translateX(-15px); color: #FF0000; text-shadow: 0 0 20px red; }
+            40%, 80% { transform: translateX(15px); color: #FF0000; }
         }
+        .shake { animation: shake 0.3s ease-in-out; }
 
-        .shake { animation: shake 0.4s ease-in-out; }
-
-        #timer-bar-container { width: 100%; height: 10px; background-color: #333; z-index: 10; }
+        #timer-bar-container { position: absolute; top: 0; left: 0; width: 100%; height: 8px; background-color: #222; z-index: 10; }
         #timer-bar { height: 100%; width: 100%; background-color: #00FF00; transition: width 1s linear, background-color 0.5s; }
 
-        /* 隱藏的輸入框，放在畫面最左上角防止畫面被捲動 */
-        #hidden-input {
-            position: absolute;
-            top: 0; left: 0;
-            width: 1px; height: 1px;
-            opacity: 0; border: none;
-            /* 不要用 display: none 或 pointer-events: none，否則無法喚出鍵盤 */
-        }
+        #hidden-input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; border: none; }
 
-        /* 各種互動覆蓋層 */
         .overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background: rgba(0,0,0,0.85);
-            display: flex; flex-direction: column; justify-content: center; align-items: center;
-            z-index: 20; text-align: center; padding: 20px;
+            background: rgba(5,5,16,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center;
+            z-index: 100; text-align: center; padding: 20px;
         }
-
-        .overlay h1 { font-size: 2.5rem; color: #FFD700; margin-bottom: 20px; }
-        .overlay p { font-size: 1.2rem; color: #ccc; margin-bottom: 30px; line-height: 1.5; }
-        button { padding: 15px 40px; font-size: 1.5rem; border: none; border-radius: 8px; background-color: #E50914; color: white; cursor: pointer; font-weight: bold; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        button:active { transform: translateY(2px); box-shadow: none; }
         
-        #resume-overlay { display: none; background: rgba(0,0,0,0.6); backdrop-filter: blur(5px); }
-        #answer-overlay { display: none; }
+        .overlay h1 { font-size: 2.5rem; color: #00FFFF; text-shadow: 0 0 10px #00FFFF; margin-bottom: 20px; }
+        .overlay p { font-size: 1.2rem; color: #ccc; margin-bottom: 30px; line-height: 1.5; }
+        button { padding: 15px 40px; font-size: 1.5rem; border: 2px solid #00FFFF; border-radius: 8px; background-color: transparent; color: #00FFFF; cursor: pointer; font-weight: bold; text-shadow: 0 0 5px #00FFFF; box-shadow: 0 0 10px rgba(0,255,255,0.5), inset 0 0 10px rgba(0,255,255,0.5); }
+        button:active { background-color: #00FFFF; color: #000; }
+        
+        #resume-overlay, #answer-overlay { display: none; }
     </style>
 </head>
 <body>
 
     <input type="text" id="hidden-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
 
-    <div id="game-screen">
+    <div id="visual-viewport-container">
+        <div id="tunnel"><div class="tunnel-grid"></div></div>
+
+        <div id="timer-bar-container"><div id="timer-bar"></div></div>
+
         <div id="word-container">
             <div id="kanji-display">--</div>
             <div id="kana-display"></div>
         </div>
     </div>
 
-    <div id="timer-bar-container"><div id="timer-bar"></div></div>
-
     <div id="start-overlay" class="overlay">
-        <h1>日文極限打字特訓</h1>
-        <p>準備好你的手機日文鍵盤。<br>點擊下方按鈕後，鍵盤將自動彈出。<br>請根據出現的假名逐字輸入！</p>
-        <button onclick="initGame()">開始特訓</button>
+        <h1>假名空間擊破特訓</h1>
+        <p>準備好你的日文鍵盤。<br>鍵盤會自動彈出，<br>請在撞上單字前將其擊碎！</p>
+        <button onclick="initGame()">啟動引擎</button>
     </div>
 
     <div id="resume-overlay" class="overlay" onclick="resumeGame()">
-        <h1>遊戲暫停</h1>
+        <h1>失去動力</h1>
         <p>偵測到鍵盤已收起</p>
-        <button>點擊畫面繼續</button>
+        <button>點擊重新連接</button>
     </div>
 
     <div id="answer-overlay" class="overlay">
-        <h1 id="answer-text">時間到！</h1>
+        <h1 id="answer-text" style="color:#FF0055; text-shadow: 0 0 10px #FF0055;">護盾受損！</h1>
         <p id="answer-detail">--</p>
-        <button onclick="nextWord()">下一題</button>
+        <button onclick="nextWord()" style="border-color:#FF0055; color:#FF0055;">繼續前進</button>
     </div>
 
     <script>
+        // 適應手機鍵盤的核心邏輯
+        const vpContainer = document.getElementById('visual-viewport-container');
+        
+        function resizeLayout() {
+            if (window.visualViewport) {
+                // 將容器高度設為扣除鍵盤後的實際高度
+                vpContainer.style.height = window.visualViewport.height + 'px';
+                // 防止 iOS Safari 的詭異捲動行為，將容器推移到可視範圍頂部
+                vpContainer.style.top = window.visualViewport.offsetTop + 'px';
+            }
+        }
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', resizeLayout);
+            window.visualViewport.addEventListener('scroll', resizeLayout);
+            resizeLayout(); // 初始化
+        }
+
         const vocabulary = [
             { kanji: "東京", reading: "とうきょう" },
             { kanji: "地下鉄", reading: "ちかてつ" },
             { kanji: "荷物", reading: "にもつ" },
-            { kanji: "苗場", reading: "なえば" },
-            { kanji: "滑雪", reading: "スキー" },
-            { kanji: "謎解き", reading: "なぞとき" },
             { kanji: "迷宮", reading: "めいきゅう" },
             { kanji: "暗号", reading: "あんごう" },
             { kanji: "改札口", reading: "かいさつぐち" },
             { kanji: "切符", reading: "きっぷ" },
-            { kanji: "秋葉原", reading: "あきはばら" }
+            { kanji: "秋葉原", reading: "あきはばら" },
+            { kanji: "新宿", reading: "しんじゅく" }
         ];
 
         let currentWordIndex = -1;
@@ -171,90 +200,117 @@
         const startOverlay = document.getElementById('start-overlay');
         const resumeOverlay = document.getElementById('resume-overlay');
         const answerOverlay = document.getElementById('answer-overlay');
-        const answerText = document.getElementById('answer-text');
         const answerDetail = document.getElementById('answer-detail');
 
-        // 片假名轉平假名
         function toHiragana(str) {
             return str.replace(/[\u30a1-\u30f6]/g, function(match) {
-                var chr = match.charCodeAt(0) - 0x60;
-                return String.fromCharCode(chr);
+                return String.fromCharCode(match.charCodeAt(0) - 0x60);
             });
         }
 
-        // 初始化遊戲 (使用者第一次點擊)
         function initGame() {
             startOverlay.style.display = 'none';
             hiddenInput.focus();
             nextWord();
         }
 
-        // 恢復遊戲 (如果玩家不小心把鍵盤收起來了)
         function resumeGame() {
             resumeOverlay.style.display = 'none';
             hiddenInput.focus();
         }
 
-        // 監聽輸入框失去焦點 (通常代表鍵盤被收起了)
         hiddenInput.addEventListener('blur', () => {
             if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none') {
                 resumeOverlay.style.display = 'flex';
             }
         });
 
-        // 核心邏輯：逐字判斷
+        // 發射文字子彈的特效函數
+        function fireBullet(char, targetIndex) {
+            const bullet = document.createElement('div');
+            bullet.className = 'bullet';
+            bullet.textContent = char;
+            
+            // 子彈起點：畫面正下方（模擬鍵盤位置）
+            const startX = window.innerWidth / 2;
+            const startY = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+            
+            bullet.style.left = startX + 'px';
+            bullet.style.top = startY + 'px';
+            document.body.appendChild(bullet);
+
+            // 目標終點：畫面上對應的假名字母中心位置
+            const targetSpan = document.getElementById(`char-${targetIndex}`);
+            const rect = targetSpan.getBoundingClientRect();
+            const endX = rect.left + rect.width / 2;
+            const endY = rect.top + rect.height / 2;
+
+            // 強制瀏覽器重繪，讓 transition 生效
+            void bullet.offsetWidth;
+
+            // 啟動飛行
+            bullet.style.left = endX + 'px';
+            bullet.style.top = endY + 'px';
+            bullet.style.transform = 'translate(-50%, -50%) scale(1.5)';
+            bullet.style.opacity = '0'; // 擊中時淡出
+
+            // 飛行時間結束後，點亮目標字母並移除子彈
+            setTimeout(() => {
+                bullet.remove();
+                targetSpan.classList.add('correct');
+            }, 150); // 150毫秒的極速射擊感
+        }
+
         hiddenInput.addEventListener('input', function() {
             if (currentWordIndex === -1) return;
 
             let currentInput = toHiragana(hiddenInput.value);
             let matchCount = 0;
 
-            // 1. 計算目前打對了幾個字
             for (let i = 0; i < currentInput.length; i++) {
                 if (i < targetKana.length && currentInput[i] === targetKana[i]) {
                     matchCount++;
                 } else {
-                    break; // 遇到第一個錯字就停止計算
+                    break; 
                 }
             }
 
-            // 2. 更新畫面上的字元顏色
-            for (let i = 0; i < targetKana.length; i++) {
-                const span = document.getElementById(`char-${i}`);
-                if (i < matchCount) {
-                    span.classList.add('correct');
-                } else {
-                    span.classList.remove('correct');
+            // 檢查是否剛剛打對了一個新字
+            // 如果輸入長度等於 matchCount，代表剛打的字是對的，觸發射擊！
+            if (currentInput.length === matchCount && matchCount > 0) {
+                // 檢查這個字是不是還沒被點亮（避免重複觸發）
+                const targetSpan = document.getElementById(`char-${matchCount - 1}`);
+                if (!targetSpan.classList.contains('correct')) {
+                    fireBullet(currentInput[matchCount - 1], matchCount - 1);
                 }
             }
 
-            // 3. 判斷是否全部打對 (過關)
+            // 判斷是否全部打對 (過關：觸發爆破特效)
             if (matchCount === targetKana.length) {
-                hiddenInput.value = ""; // 清空準備下一題
+                hiddenInput.value = ""; 
+                clearInterval(timerInterval); // 停止計時
                 
-                // 整個單字變綠色閃爍一下，然後進入下一題
-                kanaDisplay.style.textShadow = "0 0 30px #00FF00";
+                // 停止逼近動畫，改為爆破動畫
+                wordContainer.classList.remove('approaching');
+                void wordContainer.offsetWidth;
+                wordContainer.classList.add('exploding');
+                
+                // 爆破動畫結束後換下一題
                 setTimeout(() => {
-                    kanaDisplay.style.textShadow = "";
                     nextWord();
-                }, 300);
+                }, 400);
                 return;
             }
 
-            // 4. 判斷是否有打錯字
+            // 判斷是否有打錯字
             if (currentInput.length > matchCount) {
-                // 代表在 index 為 matchCount 的地方打錯了
                 if (matchCount < targetKana.length) {
                     const errorSpan = document.getElementById(`char-${matchCount}`);
-                    
-                    // 重新觸發震動動畫的 CSS 技巧
                     errorSpan.classList.remove('shake');
-                    void errorSpan.offsetWidth; // 觸發 reflow
+                    void errorSpan.offsetWidth; 
                     errorSpan.classList.add('shake');
                 }
-
-                // 【關鍵】自動刪除玩家打錯的那個字！
-                // 這樣玩家不需要按 Backspace，只要重新輸入正確的假名即可
+                // 自動刪除錯誤字元
                 hiddenInput.value = targetKana.substring(0, matchCount);
             }
         });
@@ -265,14 +321,17 @@
             hiddenInput.value = ''; 
             hiddenInput.focus();
             
-            currentWordIndex = Math.floor(Math.random() * vocabulary.length);
+            // 隨機抽選，但不與上一題重複
+            let nextIndex;
+            do {
+                nextIndex = Math.floor(Math.random() * vocabulary.length);
+            } while (nextIndex === currentWordIndex && vocabulary.length > 1);
+            currentWordIndex = nextIndex;
+
             const currentObj = vocabulary[currentWordIndex];
             targetKana = currentObj.reading;
             
-            // 設定漢字
             kanjiDisplay.textContent = currentObj.kanji;
-            
-            // 動態產生假名的 <span> 標籤，用來獨立控制變色和震動
             kanaDisplay.innerHTML = "";
             for (let i = 0; i < targetKana.length; i++) {
                 const span = document.createElement('span');
@@ -283,6 +342,7 @@
             }
             
             // 重啟逼近動畫
+            wordContainer.classList.remove('exploding');
             wordContainer.classList.remove('approaching');
             void wordContainer.offsetWidth;
             wordContainer.classList.add('approaching');
@@ -305,17 +365,16 @@
             timerBar.style.width = percentage + '%';
             if (timeLeft > 5) timerBar.style.backgroundColor = '#00FF00';
             else if (timeLeft > 2) timerBar.style.backgroundColor = '#FFA500';
-            else timerBar.style.backgroundColor = '#FF0000';
+            else timerBar.style.backgroundColor = '#FF0055';
         }
 
         function showAnswer() {
             clearInterval(timerInterval);
             wordContainer.classList.remove('approaching');
             const currentObj = vocabulary[currentWordIndex];
-            answerText.textContent = "時間到！";
-            answerDetail.innerHTML = `正解: <span style="color:#00FF00; font-weight:bold;">${currentObj.reading}</span>`;
+            answerDetail.innerHTML = `正確密碼: <br><span style="color:#00FF00; font-size:2rem; font-weight:bold;">${currentObj.reading}</span>`;
             answerOverlay.style.display = 'flex';
-            hiddenInput.blur(); // 暫時收起鍵盤
+            hiddenInput.blur(); 
         }
     </script>
 </body>
