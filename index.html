@@ -42,7 +42,6 @@
             will-change: transform, opacity, filter;
         }
 
-        /* 確保碎裂時各個字元可以獨立變形 */
         #kanji-display { 
             font-size: 1.8rem; color: #888; margin-bottom: 15px; 
             text-shadow: 2px 2px 4px #000; display: inline-block;
@@ -333,7 +332,6 @@
                 if (matchCount === targetKana.length) {
                     score++;
                     updateStats();
-                    // 等待最後一發雷射的 150ms 飛行動畫到達後，觸發全字碎裂
                     setTimeout(clearAndExplode, 150); 
                 } else {
                     updateFlickHint();
@@ -401,20 +399,16 @@
             };
         }
 
-        // 新增：物理級碎裂特效
         function clearAndExplode() {
             cancelAnimationFrame(animationFrameId);
             
-            // 抓取每一個獨立的字元區塊 (漢字、每一個假名、每一個羅馬拼音)
             const parts = document.querySelectorAll('#kanji-display, .kana-char, .romaji-char');
             
             parts.forEach(part => {
                 const angle = Math.random() * Math.PI * 2;
-                // 產生隨機的爆炸飛散距離
                 const dist = 60 + Math.random() * 150;
                 const tx = Math.cos(angle) * dist;
                 const ty = Math.sin(angle) * dist;
-                // 產生隨機翻轉角度
                 const rot = (Math.random() - 0.5) * 120;
 
                 part.animate([
@@ -423,7 +417,6 @@
                 ], { duration: 350, easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)', fill: 'forwards' });
             });
             
-            // 附加原有的雷射高能量粒子爆炸
             const rect = wordContainer.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
@@ -435,7 +428,6 @@
                 );
             }
 
-            // 等待碎裂動畫播完再進入下一題
             setTimeout(nextWord, 400);
         }
 
@@ -450,24 +442,21 @@
             if (progress > 1) progress = 1;
             if (progress < 0) progress = 0;
 
-            // 新增 1：Cubic Ease-Out，讓文字一開始以 3 次方的速率快速放大，後面才減速逼近
             let easeProgress = 1 - Math.pow(1 - progress, 3);
             let currentScale = 0.1 + (calculatedTargetScale - 0.1) * easeProgress;
             
-            // 新增 2：瀕死顫抖特效與強烈紅光警告
             let shakeX = 0, shakeY = 0;
             if (progress > 0.75) { 
-                // 最後 25% 開始啟動警告狀態
-                let intensity = (progress - 0.75) * 4; // intensity 會從 0 升至 1
-                shakeX = (Math.random() - 0.5) * 15 * intensity;
-                shakeY = (Math.random() - 0.5) * 15 * intensity;
+                let intensity = (progress - 0.75) * 4; 
+                // 將震動幅度從 15 縮小到 5，產生高頻但細微的震顫感
+                shakeX = (Math.random() - 0.5) * 5 * intensity;
+                shakeY = (Math.random() - 0.5) * 5 * intensity;
                 wordContainer.style.filter = `drop-shadow(0 0 ${30 * intensity}px rgba(255,0,0,0.8))`;
             } else {
                 wordContainer.style.filter = `none`;
             }
 
             wordContainer.style.transform = `scale(${currentScale}) translate(${shakeX}px, ${shakeY}px)`;
-            // 開頭淡入也配合 easeProgress 加速出現
             wordContainer.style.opacity = Math.min(1, easeProgress * 5); 
 
             updateTimerBar();
@@ -488,7 +477,6 @@
         }
 
         function nextWord() {
-            // 清除上一題文字的殘留碎裂動畫，歸零所有狀態
             const kanjiDisplay = document.getElementById('kanji-display');
             if (typeof kanjiDisplay.getAnimations === 'function') {
                 kanjiDisplay.getAnimations().forEach(anim => anim.cancel());
@@ -528,8 +516,18 @@
             let baseWidth = wordContainer.offsetWidth;
             let maxWidth = window.innerWidth * 0.95; 
             
+            // 修正：限制短單字的最大放大倍率
             if (baseWidth > 0) {
-                calculatedTargetScale = maxWidth / baseWidth;
+                // 計算單一字元的平均寬度
+                let avgCharWidth = baseWidth / Math.max(1, targetKana.length);
+                // 假設這是一個 6 字元的單字，它填滿畫面所需的縮放比例
+                let scaleFor6Chars = maxWidth / (avgCharWidth * 6);
+                // 這個單字實際填滿畫面所需的極限縮放比例
+                let scaleToFillScreen = maxWidth / baseWidth;
+                
+                // 取兩者中較小的值：
+                // 短單字會受限於 6 字元的標準大小，長單字會受限於螢幕寬度避免破版
+                calculatedTargetScale = Math.min(scaleToFillScreen, scaleFor6Chars);
             } else {
                 calculatedTargetScale = 2;
             }
