@@ -9,10 +9,13 @@
             --duration: 20s;
             --target-scale: 2; 
         }
-        body {
-            margin: 0; padding: 0; background-color: #050510;
-            color: white; font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            overflow: hidden; touch-action: none;
+        /* 新增 position: fixed 與 overscroll-behavior 徹底鎖定畫面，防止 iOS 彈性滑動干擾 */
+        html, body {
+            margin: 0; padding: 0; width: 100%; height: 100%;
+            background-color: #050510; color: white; 
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            overflow: hidden; touch-action: none; overscroll-behavior: none;
+            position: fixed;
         }
 
         #visual-viewport-container {
@@ -107,14 +110,12 @@
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
 
-        /* 雷射子彈基礎樣式 */
         .bullet {
             position: fixed; z-index: 40; pointer-events: none;
             width: 4px; height: 25px; border-radius: 2px;
             background-color: #00FFFF; box-shadow: 0 0 15px #00FFFF, 0 0 5px #fff;
         }
 
-        /* 碎片粒子基礎樣式 */
         .particle {
             position: fixed; z-index: 80; pointer-events: none;
         }
@@ -127,7 +128,8 @@
         .shake { animation: shake 0.2s ease-in-out 2; }
 
         #timer-bar-container { position: absolute; top: 0; left: 0; width: 100%; height: 6px; background-color: #222; z-index: 20;}
-        #timer-bar { height: 100%; width: 100%; background-color: #00FF00; transition: width 0.1s linear; }
+        /* 移除了 transition，因為現在我們透過 60fps 的 JS 動畫影格做到了完美的平滑同步 */
+        #timer-bar { height: 100%; width: 100%; background-color: #00FF00; }
 
         #hidden-input { position: absolute; top: 0; left: 0; width: 1px; height: 1px; opacity: 0; }
 
@@ -175,7 +177,7 @@
 
     <div id="resume-overlay" class="overlay">
         <h1 style="color:#FFD700">系統中斷</h1>
-        <p style="color:#ccc">請點擊下方按鈕重新展開武器面板</p>
+        <p style="color:#ccc">點擊輸入框區域以重新展開武器面板</p>
         <button onclick="resumeGame()">重新連線</button>
     </div>
 
@@ -224,7 +226,11 @@
         ];
 
         let currentWordIndex = -1;
-        let timerInterval;
+        
+        // 核心計時引擎更新為 requestAnimationFrame，告別飄移誤差
+        let animationFrameId;
+        let lastTime = 0;
+        
         let currentDuration = 20; 
         let timeLeft = 20;
         let targetKana = "";
@@ -247,12 +253,20 @@
                 vpContainer.style.height = window.visualViewport.height + 'px';
                 vpContainer.style.top = window.visualViewport.offsetTop + 'px';
                 
+                // 動態判斷鍵盤狀態以暫停/恢復遊戲計時
                 if (window.visualViewport.height >= window.innerHeight * 0.85) {
-                    if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none') {
+                    if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none' && resumeOverlay.style.display !== 'flex') {
                         resumeOverlay.style.display = 'flex';
+                        cancelAnimationFrame(animationFrameId); // 暫停計時
+                        wordContainer.style.animationPlayState = 'paused';
                     }
                 } else {
-                    resumeOverlay.style.display = 'none';
+                    if (resumeOverlay.style.display === 'flex') {
+                        resumeOverlay.style.display = 'none';
+                        lastTime = 0; // 重置時間戳記
+                        animationFrameId = requestAnimationFrame(runTimer); // 自動恢復計時
+                        wordContainer.style.animationPlayState = 'running';
+                    }
                 }
             }
         }
@@ -279,6 +293,9 @@
         function resumeGame() {
             resumeOverlay.style.display = 'none';
             hiddenInput.focus();
+            lastTime = 0;
+            animationFrameId = requestAnimationFrame(runTimer);
+            wordContainer.style.animationPlayState = 'running';
         }
 
         function updateStats() {
@@ -317,17 +334,14 @@
             let inputVal = toHiragana(hiddenInput.value);
             if (inputVal.length === 0) return;
             
-            // 我們只專注於判斷使用者當下輸入的「最後一個字」
             let lastChar = inputVal[inputVal.length - 1];
             let targetChar = toHiragana(targetKana[matchCount]);
 
             if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
-                // 發射雷射子彈
                 fireLaser(matchCount);
                 matchCount++;
                 
-                // 敲擊正確！立刻清空輸入框，斷絕 iOS 預測選字的上下文
-                hiddenInput.value = '';
+                hiddenInput.value = ''; // 正確時清空
                 
                 document.querySelectorAll('.kana-char').forEach((s, idx) => {
                     if (idx < matchCount) s.className = 'kana-char correct';
@@ -349,14 +363,13 @@
                     updateFlickHint();
                 }
             } else {
-                // 如果打錯，給予視覺回饋
                 const errorSpan = document.getElementById(`char-${matchCount}`);
                 errorSpan.classList.remove('shake');
                 void errorSpan.offsetWidth;
                 errorSpan.classList.add('shake');
                 
-                // 為了讓濁音/半濁音 (゛/゜) 可以作用，打錯時我們保留「最後敲擊的單一字元」
-                // 這樣就不會讓輸入框累積出無法辨識的亂碼或觸發選字
+                // 為了讓你能順利敲出濁音/半濁音 (゛/゜)，錯誤時我們必須保留你的輸入字元在底層
+                // 這也是為什麼 iOS 系統一定會觸發預測選字的根本原因。
                 hiddenInput.value = lastChar;
             }
         });
@@ -367,15 +380,11 @@
                 p.className = 'particle';
                 p.style.backgroundColor = color;
                 p.style.boxShadow = `0 0 8px ${color}`;
-                
                 p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
                 
                 const size = 3 + Math.random() * 5;
-                p.style.width = size + 'px';
-                p.style.height = size + 'px';
-                
-                p.style.left = x + 'px';
-                p.style.top = y + 'px';
+                p.style.width = size + 'px'; p.style.height = size + 'px';
+                p.style.left = x + 'px'; p.style.top = y + 'px';
                 document.body.appendChild(p);
 
                 const angle = Math.random() * Math.PI * 2;
@@ -386,10 +395,7 @@
                 p.animate([
                     { transform: 'translate(-50%, -50%) rotate(0deg) scale(1)', opacity: 1 },
                     { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) rotate(${Math.random() * 360}deg) scale(0)`, opacity: 0 }
-                ], {
-                    duration: 300 + Math.random() * 300,
-                    easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)'
-                }).onfinish = () => p.remove();
+                ], { duration: 300 + Math.random() * 300, easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)' }).onfinish = () => p.remove();
             }
         }
 
@@ -399,7 +405,6 @@
             
             const startY = window.visualViewport ? window.visualViewport.height : window.innerHeight;
             const startX = window.visualViewport ? window.visualViewport.width / 2 : window.innerWidth / 2;
-            
             document.body.appendChild(bullet);
 
             const targetEl = document.getElementById(`char-${idx}`);
@@ -410,15 +415,11 @@
             const animation = bullet.animate([
                 { transform: `translate(-50%, -50%) scaleY(1)`, top: `${startY}px`, left: `${startX}px` },
                 { transform: `translate(-50%, -50%) scaleY(1.5)`, top: `${targetY}px`, left: `${targetX}px` }
-            ], {
-                duration: 60,
-                easing: 'linear'
-            });
+            ], { duration: 60, easing: 'linear' });
 
             animation.onfinish = () => {
                 bullet.remove();
                 createParticles(targetX, targetY, '#00FF00', 15); 
-                
                 targetEl.animate([
                     { filter: 'brightness(3) drop-shadow(0 0 20px #00FF00)', transform: 'scale(1.4)' },
                     { filter: 'brightness(1) drop-shadow(0 0 10px rgba(255, 255, 255, 0.2))', transform: 'scale(1.1)' }
@@ -427,24 +428,16 @@
         }
 
         function clearAndExplode() {
-            clearInterval(timerInterval);
-            
-            // 抓取容器目前的精確縮放與位置
+            cancelAnimationFrame(animationFrameId);
             const computedStyle = window.getComputedStyle(wordContainer);
             const currentTransform = computedStyle.transform;
             
-            // 瞬間停用逼近的 CSS 動畫，將文字「凍結」在原地
             wordContainer.style.animation = 'none';
             
-            // 從凍結的當下大小原地炸開並消失
             wordContainer.animate([
                 { transform: currentTransform, filter: 'brightness(2)', opacity: 1 },
                 { transform: `${currentTransform} scale(1.5)`, filter: 'brightness(1)', opacity: 0 }
-            ], {
-                duration: 300,
-                easing: 'ease-out',
-                fill: 'forwards'
-            });
+            ], { duration: 300, easing: 'ease-out', fill: 'forwards' });
             
             const rect = wordContainer.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
@@ -452,19 +445,44 @@
             
             for(let i = 0; i < 40; i++) {
                 createParticles(
-                    centerX + (Math.random() * 60 - 30), 
-                    centerY + (Math.random() * 40 - 20), 
-                    Math.random() > 0.5 ? '#00FFFF' : '#00FF00', 
-                    1
+                    centerX + (Math.random() * 60 - 30), centerY + (Math.random() * 40 - 20), 
+                    Math.random() > 0.5 ? '#00FFFF' : '#00FF00', 1
                 );
             }
-
             setTimeout(nextWord, 350);
         }
 
+        // 精準的螢幕刷新率驅動計時器
+        function runTimer(currentTime) {
+            if (!lastTime) lastTime = currentTime;
+            let deltaTime = (currentTime - lastTime) / 1000;
+            lastTime = currentTime;
+
+            timeLeft -= deltaTime;
+            updateTimerBar();
+
+            if (timeLeft <= 0) {
+                timeLeft = 0;
+                updateTimerBar();
+                showAnswer();
+            } else {
+                animationFrameId = requestAnimationFrame(runTimer);
+            }
+        }
+
+        function updateTimerBar() {
+            const p = Math.max(0, (timeLeft / currentDuration) * 100);
+            document.getElementById('timer-bar').style.width = p + '%';
+            document.getElementById('timer-bar').style.backgroundColor = p < 30 ? '#ff4444' : '#00FF00';
+        }
+
         function nextWord() {
-            // 重置容器動畫狀態以便接受下一個單字
-            wordContainer.style.animation = '';
+            // 強制清除之前所有的 Web Animations 動畫殘留，避免 iOS Safari 渲染 Bug 導致文字消失
+            if (typeof wordContainer.getAnimations === 'function') {
+                wordContainer.getAnimations().forEach(anim => anim.cancel());
+            }
+            
+            wordContainer.style.animation = 'none';
             wordContainer.className = '';
             
             hiddenInput.value = ''; matchCount = 0;
@@ -491,11 +509,7 @@
             
             let baseWidth = wordContainer.offsetWidth;
             let maxWidth = window.innerWidth * 0.95; 
-            
-            let scaleFactor = 1.5; 
-            if (baseWidth > 0) {
-                scaleFactor = maxWidth / baseWidth;
-            }
+            let scaleFactor = baseWidth > 0 ? maxWidth / baseWidth : 1.5;
             scaleFactor = Math.min(scaleFactor, 3.5); 
             
             rootStyles.style.setProperty('--target-scale', scaleFactor);
@@ -503,23 +517,14 @@
 
             timeLeft = currentDuration;
             updateTimerBar();
-            clearInterval(timerInterval);
-            timerInterval = setInterval(() => {
-                timeLeft -= 0.1; 
-                updateTimerBar();
-                if (timeLeft <= 0) showAnswer();
-            }, 100);
-        }
-
-        function updateTimerBar() {
-            const p = Math.max(0, (timeLeft / currentDuration) * 100);
-            document.getElementById('timer-bar').style.width = p + '%';
-            document.getElementById('timer-bar').style.backgroundColor = p < 30 ? '#ff4444' : '#00FF00';
+            
+            lastTime = 0;
+            cancelAnimationFrame(animationFrameId);
+            animationFrameId = requestAnimationFrame(runTimer);
         }
 
         function showAnswer() {
-            clearInterval(timerInterval);
-            // 答錯時也將動畫凍住
+            cancelAnimationFrame(animationFrameId);
             wordContainer.style.animationPlayState = 'paused'; 
             
             document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
