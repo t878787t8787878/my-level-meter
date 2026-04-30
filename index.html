@@ -5,6 +5,11 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>iPhone 日文 Flick 漸進特訓</title>
     <style>
+        :root {
+            --tunnel-color: rgba(0, 255, 255, 0.2);
+            --level-color: #00FFFF;
+        }
+
         html, body {
             margin: 0; padding: 0; width: 100%; height: 100%;
             background-color: #050510; color: white; 
@@ -24,14 +29,17 @@
             position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             perspective: 600px; z-index: -1;
         }
+        
+        /* 網格顏色綁定 CSS 變數，達成瞬間變色特效 */
         .tunnel-grid {
             position: absolute; top: 50%; left: -50%; width: 200%; height: 200%;
             background: 
-                linear-gradient(transparent 0%, rgba(0, 255, 255, 0.2) 2%, transparent 4%),
-                linear-gradient(90deg, transparent 0%, rgba(0, 255, 255, 0.2) 2%, transparent 4%);
+                linear-gradient(transparent 0%, var(--tunnel-color) 2%, transparent 4%),
+                linear-gradient(90deg, transparent 0%, var(--tunnel-color) 2%, transparent 4%);
             background-size: 60px 60px;
             transform-origin: top center; transform: rotateX(80deg);
             animation: moveForward 0.4s linear infinite;
+            transition: background 0.3s ease;
         }
         @keyframes moveForward { from { background-position: 0 0; } to { background-position: 0 60px; } }
 
@@ -91,6 +99,16 @@
         .arrow-left.active-arrow { transform: translateY(-50%) scale(1.3); }
         .arrow-right.active-arrow { transform: translateY(-50%) scale(1.3); }
 
+        /* 左上角等級顯示 */
+        #level-display {
+            position: absolute; top: 15px; left: 20px;
+            font-size: 2.2rem; font-weight: bold; font-style: italic;
+            font-family: 'Arial Black', Impact, sans-serif;
+            color: var(--level-color); z-index: 50;
+            text-shadow: 0 0 15px var(--level-color), 2px 2px 4px #000;
+            transition: color 0.3s, text-shadow 0.3s;
+        }
+
         #game-stats { position: absolute; top: 15px; right: 20px; text-align: right; z-index: 50; }
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
@@ -143,6 +161,8 @@
         <div id="tunnel"><div class="tunnel-grid"></div></div>
         <div id="timer-bar-container"><div id="timer-bar"></div></div>
         
+        <div id="level-display">LV.1</div>
+
         <div id="game-stats">
             <div id="score-display">擊破數: 0</div>
             <div id="speed-display">極限倒數: 20.0s</div>
@@ -282,6 +302,7 @@
         const kanaDisplay = document.getElementById('kana-display');
         const keyMainChar = document.getElementById('key-main-char');
         const wordContainer = document.getElementById('word-container');
+        const rootStyles = document.documentElement;
         
         const startOverlay = document.getElementById('start-overlay');
         const answerOverlay = document.getElementById('answer-overlay');
@@ -318,16 +339,11 @@
             return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
         }
 
-        // 新增：語彙複雜度加權計算
         function getWordDifficulty(word) {
-            let diff = word.reading.length; // 基礎分為字數長度
-            
-            // 含有需要兩次按鍵的濁音或半濁音：難度大幅增加
+            let diff = word.reading.length; 
             if (/[がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ]/.test(word.reading)) {
                 diff += 2;
             }
-            
-            // 含有會影響打字節奏的小字或長音：難度頂天
             if (/[ゃゅょっー]/.test(word.reading)) {
                 diff += 3;
             }
@@ -339,11 +355,10 @@
             let shuffled = [...vocabularyBase].sort(() => Math.random() - 0.5);
             shuffled.forEach(word => {
                 let diff = getWordDifficulty(word);
-                // 根據複雜度精準分級
-                if (diff <= 3) wordPools[0].push(word);       // 階段0：純短清音 (如: いぬ)
-                else if (diff <= 5) wordPools[1].push(word);  // 階段1：稍長清音或短濁音 (如: りんご)
-                else if (diff <= 7) wordPools[2].push(word);  // 階段2：長音或中長濁音 (如: ありがとう)
-                else wordPools[3].push(word);                 // 階段3：終極混合魔王 (如: じてんしゃ)
+                if (diff <= 3) wordPools[0].push(word);       
+                else if (diff <= 5) wordPools[1].push(word);  
+                else if (diff <= 7) wordPools[2].push(word);  
+                else wordPools[3].push(word);                 
             });
         }
 
@@ -354,6 +369,7 @@
             currentDuration = 20;
             updateStats();
             initPools();
+            updateLevelUI(0);
             hiddenInput.focus();
             nextWord();
         }
@@ -393,27 +409,46 @@
             ], { duration: 2500, easing: 'ease-out' });
         }
 
+        // 動態更新左上角等級與整體場景顏色
+        function updateLevelUI(tier) {
+            document.getElementById('level-display').textContent = `LV.${tier + 1}`;
+            const colors = [
+                { tunnel: 'rgba(0, 255, 255, 0.2)', text: '#00FFFF' }, // LV.1 青色
+                { tunnel: 'rgba(0, 255, 0, 0.2)', text: '#00FF00' },   // LV.2 綠色
+                { tunnel: 'rgba(255, 215, 0, 0.25)', text: '#FFD700' },// LV.3 金黃
+                { tunnel: 'rgba(255, 50, 50, 0.3)', text: '#FF3333' }  // LV.4 警戒紅
+            ];
+            rootStyles.style.setProperty('--tunnel-color', colors[tier].tunnel);
+            rootStyles.style.setProperty('--level-color', colors[tier].text);
+        }
+
         function applyRulesByScore() {
+            let newTier = Math.min(Math.floor(score / 5), 3);
+            
             hideArrows = false;
             hideRomaji = false;
             useKatakana = false;
 
-            if (score >= 5 && score < 10) {
+            if (newTier === 1) {
                 hideArrows = true;
-                if (currentTier !== 1) { currentTier = 1; showLevelUpToast("⚠️ 階段 1：單字變長、隱藏箭頭"); }
+                if (currentTier !== 1) { currentTier = 1; showLevelUpToast("⚠️ 階段升級：隱藏箭頭"); updateLevelUI(1); }
             } 
-            else if (score >= 10 && score < 15) {
+            else if (newTier === 2) {
                 hideArrows = true;
                 if (Math.random() > 0.5) hideRomaji = true;
                 else useKatakana = true;
-                if (currentTier !== 2) { currentTier = 2; showLevelUpToast("⚠️ 階段 2：出現複雜音、隨機干擾"); }
+                if (currentTier !== 2) { currentTier = 2; showLevelUpToast("⚠️ 階段升級：視覺混淆發動"); updateLevelUI(2); }
             } 
-            else if (score >= 15) {
+            else if (newTier >= 3) {
                 hideArrows = true;
                 hideRomaji = true;
                 useKatakana = true;
-                if (currentTier !== 3) { currentTier = 3; showLevelUpToast("🔥 最終階段：複合長單字盲打"); }
+                if (currentTier !== 3) { currentTier = 3; showLevelUpToast("🔥 最終階段：極限盲打模式"); updateLevelUI(3); }
+            } else {
+                if (currentTier !== 0) { currentTier = 0; updateLevelUI(0); }
             }
+            
+            if (score === 0) updateLevelUI(0);
         }
 
         function updateFlickHint() {
@@ -633,15 +668,12 @@
 
             applyRulesByScore();
 
-            // 根據當前題數(分數)決定難度，每5題一個階段 (最高階段3)
             let targetPool = Math.min(Math.floor(score / 5), 3);
             
-            // 嘗試從目標難度池抽取，如果空了就往低難度找
             while (targetPool >= 0 && wordPools[targetPool].length === 0) {
                 targetPool--;
             }
             
-            // 如果連最低難度都空了，代表全破一輪，重新洗牌
             if (targetPool < 0) {
                 initPools();
                 targetPool = Math.min(Math.floor(score / 5), 3);
