@@ -61,7 +61,7 @@
         .romaji-char {
             font-size: 1.2rem; font-weight: bold; color: #666; margin-top: 5px;
             transition: color 0.1s, text-shadow 0.1s; font-family: monospace; letter-spacing: 1px;
-            display: inline-block;
+            display: inline-block; height: 1.5rem; /* 確保隱藏時不跑版 */
         }
         .romaji-char.correct { color: #00FF00; text-shadow: 0 0 10px #00FF00; }
         .romaji-char.active { color: #00FFFF; text-shadow: 0 0 10px #00FFFF; }
@@ -79,7 +79,7 @@
 
         .arrow {
             position: absolute; font-size: 1.2rem; color: #444; font-weight: bold;
-            transition: all 0.2s; font-family: 'Arial', sans-serif; z-index: 1;
+            transition: opacity 0.3s, color 0.2s, transform 0.2s; font-family: 'Arial', sans-serif; z-index: 1;
         }
         .arrow.active-arrow { color: #1E90FF; text-shadow: 0 0 10px #1E90FF; }
         .arrow-up { top: 2px; left: 50%; transform: translateX(-50%); }
@@ -94,6 +94,13 @@
         #game-stats { position: absolute; top: 15px; right: 20px; text-align: right; z-index: 50; }
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
+
+        /* 階段提升警告文字特效 */
+        #level-up-toast {
+            position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 1.8rem; font-weight: bold; color: #FF00FF; text-shadow: 0 0 15px #FF00FF, 2px 2px 5px #000;
+            opacity: 0; pointer-events: none; z-index: 90; text-align: center; white-space: nowrap;
+        }
 
         .bullet {
             position: fixed; z-index: 40; pointer-events: none;
@@ -142,6 +149,8 @@
             <div id="speed-display">極限倒數: 20.0s</div>
         </div>
 
+        <div id="level-up-toast"></div>
+
         <div id="word-container">
             <div id="kanji-display">--</div>
             <div id="kana-display"></div>
@@ -165,8 +174,8 @@
     <div id="start-overlay" class="overlay">
         <h1 style="color:#00FFFF">iPhone 肌肉記憶特訓</h1>
         <p style="line-height:1.6; color:#ccc;">
-            請手動切換至「日文-假名輸入」鍵盤。<br>
-            單字長度會逐漸增加，速度每題加快 0.5 秒。<br>
+            每過 5 題難度將強制升階，單字長度增加。<br>
+            系統將逐步剝奪你的視覺提示。<br>
             極限反應時間：5.0 秒。請在逼近前將其擊碎！
         </p>
         <button onclick="initGame()">啟動特訓引擎</button>
@@ -195,13 +204,12 @@
             'ゃ': { key: 'や', dir: '點擊', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', dir: '上滑', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', dir: '下滑', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', dir: '上滑', arrow: 'up', romaji: 'tsu' }
         };
 
-        // 擴充至 120+ 個單字庫
-        let vocabulary = [
+        const vocabularyBase = [
             { kanji: "狗", reading: "いぬ" }, { kanji: "貓", reading: "ねこ" }, { kanji: "傘", reading: "かさ" },
             { kanji: "肉", reading: "にく" }, { kanji: "車站", reading: "えき" }, { kanji: "秋天", reading: "あき" },
             { kanji: "春天", reading: "はる" }, { kanji: "夏天", reading: "なつ" }, { kanji: "冬天", reading: "ふゆ" },
             { kanji: "橋", reading: "はし" }, { kanji: "寺廟", reading: "てら" }, { kanji: "鞋子", reading: "くつ" },
-            { kanji: "紙/頭髮", reading: "かみ" }, { kanji: "雪", reading: "ゆき" }, { kanji: "雨", reading: "あめ" },
+            { kanji: "頭髮", reading: "かみ" }, { kanji: "雪", reading: "ゆき" }, { kanji: "雨", reading: "あめ" },
             { kanji: "山", reading: "やま" }, { kanji: "河川", reading: "かわ" }, { kanji: "海", reading: "うみ" },
             { kanji: "星星", reading: "ほし" }, { kanji: "天空", reading: "そら" }, { kanji: "月亮", reading: "つき" },
             { kanji: "花", reading: "はな" }, { kanji: "鳥", reading: "とり" }, { kanji: "石頭", reading: "いし" },
@@ -222,11 +230,11 @@
             { kanji: "狐狸", reading: "きつね" }, { kanji: "狸貓", reading: "たぬき" }, { kanji: "老鼠", reading: "ねずみ" },
             { kanji: "雲", reading: "くも" }, { kanji: "風", reading: "かぜ" }, { kanji: "白飯", reading: "ごはん" },
             { kanji: "麵包", reading: "ぱん" }, { kanji: "朋友", reading: "ともだち" }, { kanji: "頭", reading: "あたま" },
-            { kanji: "大", reading: "おおきい" }, { kanji: "小", reading: "ちいさい" }, { kanji: "高/貴", reading: "たかい" },
+            { kanji: "大", reading: "おおきい" }, { kanji: "小", reading: "ちいさい" }, { kanji: "高貴", reading: "たかい" },
             { kanji: "便宜", reading: "やすい" }, { kanji: "熱", reading: "あつい" }, { kanji: "冷", reading: "さむい" },
 
             { kanji: "拉麵", reading: "らーめん" }, { kanji: "地下鐵", reading: "ちかてつ" }, { kanji: "東京", reading: "とうきょう" },
-            { kanji: "飯糰", reading: "おにぎり" }, { kanji: "烤鳥肉串", reading: "やきとり" }, { kanji: "鉛筆", reading: "えんぴつ" },
+            { kanji: "飯糰", reading: "おにぎり" }, { kanji: "烤肉串", reading: "やきとり" }, { kanji: "鉛筆", reading: "えんぴつ" },
             { kanji: "橡皮擦", reading: "けしごむ" }, { kanji: "電腦", reading: "ぱそこん" }, { kanji: "手機", reading: "けいたい" },
             { kanji: "老師", reading: "せんせい" }, { kanji: "學生", reading: "がくせい" }, { kanji: "大學", reading: "だいがく" },
             { kanji: "郵局", reading: "ゆうびん" }, { kanji: "飛機", reading: "ひこうき" }, { kanji: "電風扇", reading: "せんぷう" },
@@ -248,7 +256,7 @@
             { kanji: "再見", reading: "さようなら" }, { kanji: "歡迎光臨", reading: "いらっしゃい" }, { kanji: "醫院", reading: "びょういん" }
         ];
 
-        let wordQueueIndex = 0;
+        let wordPools = [[], [], [], []];
         let animationFrameId;
         let lastTime = 0;
         
@@ -257,8 +265,13 @@
         let targetKana = "";
         let matchCount = 0;
         let score = 0;
+        let currentTier = 0;
         
         let calculatedTargetScale = 2;
+
+        let hideArrows = false;
+        let hideRomaji = false;
+        let useKatakana = false;
 
         const hiddenInput = document.getElementById('hidden-input');
         const vpContainer = document.getElementById('visual-viewport-container');
@@ -291,22 +304,36 @@
         }
         window.visualViewport.addEventListener('resize', resizeLayout);
 
+        // 將平假名轉為片假名
+        function toKatakana(hiragana) {
+            return hiragana.replace(/[\u3041-\u3096]/g, match => {
+                return String.fromCharCode(match.charCodeAt(0) + 0x60);
+            });
+        }
+
         function toHiragana(str) {
             return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
+        }
+
+        function initPools() {
+            wordPools = [[], [], [], []];
+            let shuffled = [...vocabularyBase].sort(() => Math.random() - 0.5);
+            shuffled.forEach(word => {
+                let len = word.reading.length;
+                if (len <= 3) wordPools[0].push(word);
+                else if (len === 4) wordPools[1].push(word);
+                else if (len === 5) wordPools[2].push(word);
+                else wordPools[3].push(word);
+            });
         }
 
         function initGame() {
             startOverlay.style.display = 'none';
             score = 0;
+            currentTier = 0;
             currentDuration = 20;
             updateStats();
-            
-            // 初始化字庫：先全體打亂，再依據假名長度由短到長排序
-            // 這樣長度相同的單字順序會是隨機的，且確保短字先出、長字後出
-            vocabulary.sort(() => Math.random() - 0.5);
-            vocabulary.sort((a, b) => a.reading.length - b.reading.length);
-            wordQueueIndex = 0;
-
+            initPools();
             hiddenInput.focus();
             nextWord();
         }
@@ -325,9 +352,52 @@
 
         function updateStats() {
             document.getElementById('score-display').textContent = `擊破數: ${score}`;
-            // 核心加速邏輯：每答對一題扣 0.5 秒，最低極限限制在 5.0 秒
             currentDuration = Math.max(5.0, 20.0 - (score * 0.5));
             document.getElementById('speed-display').textContent = `極限倒數: ${currentDuration.toFixed(1)}s`;
+        }
+
+        function showLevelUpToast(msg) {
+            const toast = document.getElementById('level-up-toast');
+            toast.textContent = msg;
+            
+            if (typeof toast.getAnimations === 'function') {
+                toast.getAnimations().forEach(anim => anim.cancel());
+            }
+
+            toast.animate([
+                { transform: 'translate(-50%, -50%) scale(0.5)', opacity: 0 },
+                { transform: 'translate(-50%, -50%) scale(1.2)', opacity: 1, offset: 0.1 },
+                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1, offset: 0.2 },
+                { transform: 'translate(-50%, -50%) scale(1)', opacity: 1, offset: 0.8 },
+                { transform: 'translate(-50%, -50%) scale(1.5)', opacity: 0 }
+            ], { duration: 2500, easing: 'ease-out' });
+        }
+
+        function applyRulesByScore() {
+            let newTier = Math.floor(score / 5);
+            
+            // 基礎設定歸零
+            hideArrows = false;
+            hideRomaji = false;
+            useKatakana = false;
+
+            if (score >= 5 && score < 10) {
+                hideArrows = true;
+                if (currentTier !== 1) { currentTier = 1; showLevelUpToast("⚠️ 階段 1：隱藏方向箭頭"); }
+            } 
+            else if (score >= 10 && score < 15) {
+                hideArrows = true;
+                // 第二階段：每一題隨機選擇一種干擾
+                if (Math.random() > 0.5) hideRomaji = true;
+                else useKatakana = true;
+                if (currentTier !== 2) { currentTier = 2; showLevelUpToast("⚠️ 階段 2：隨機混淆視聽"); }
+            } 
+            else if (score >= 15) {
+                hideArrows = true;
+                hideRomaji = true;
+                useKatakana = true;
+                if (currentTier !== 3) { currentTier = 3; showLevelUpToast("🔥 最終階段：極限盲打模式"); }
+            }
         }
 
         function updateFlickHint() {
@@ -347,6 +417,8 @@
             for (let dir in arrowElements) {
                 arrowElements[dir].el.textContent = arrowElements[dir].hollow;
                 arrowElements[dir].el.classList.remove('active-arrow');
+                // 根據當前難度規則動態隱藏箭頭
+                arrowElements[dir].el.style.opacity = hideArrows ? '0' : '1';
             }
 
             if (hint.arrow && arrowElements[hint.arrow]) {
@@ -544,25 +616,36 @@
             hiddenInput.value = ''; matchCount = 0;
             hiddenInput.focus();
 
-            // 循序取出單字，若 120 多個字全打完，則重新洗牌並從頭開始
-            if (wordQueueIndex >= vocabulary.length) {
-                vocabulary.sort(() => Math.random() - 0.5);
-                vocabulary.sort((a, b) => a.reading.length - b.reading.length);
-                wordQueueIndex = 0;
+            // 套用難度規則
+            applyRulesByScore();
+
+            // 根據分數決定從哪個難度的字庫抽字 (每 5 題升級)
+            let poolIndex = Math.min(Math.floor(score / 5), 3);
+            
+            // 如果該難度字庫空了，就往下找難度較低的，如果全空就重新洗牌
+            while (poolIndex >= 0 && wordPools[poolIndex].length === 0) {
+                poolIndex--;
+            }
+            if (poolIndex < 0) {
+                initPools();
+                poolIndex = Math.min(Math.floor(score / 5), 3);
             }
             
-            const word = vocabulary[wordQueueIndex];
-            wordQueueIndex++; // 指向下一個單字
+            const word = wordPools[poolIndex].pop();
             targetKana = word.reading;
 
             kanjiDisplay.textContent = word.kanji;
             
             kanaDisplay.innerHTML = targetKana.split('').map((c, i) => {
                 const hint = flickMap[toHiragana(c)] || { romaji: '?' };
+                // 根據規則動態渲染：是否轉片假名？是否隱藏羅馬拼音？
+                const displayChar = useKatakana ? toKatakana(c) : c;
+                const displayRomaji = hideRomaji ? '' : hint.romaji.toUpperCase();
+
                 return `
                 <div class="char-col" id="col-${i}">
-                    <div id="char-${i}" class="kana-char ${i===0?'active':''}">${c}</div>
-                    <div id="romaji-${i}" class="romaji-char ${i===0?'active':''}">${hint.romaji.toUpperCase()}</div>
+                    <div id="char-${i}" class="kana-char ${i===0?'active':''}">${displayChar}</div>
+                    <div id="romaji-${i}" class="romaji-char ${i===0?'active':''}">${displayRomaji}</div>
                 </div>`;
             }).join('');
 
