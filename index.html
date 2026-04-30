@@ -30,7 +30,6 @@
             perspective: 600px; z-index: -1;
         }
         
-        /* 網格顏色綁定 CSS 變數，達成瞬間變色特效 */
         .tunnel-grid {
             position: absolute; top: 50%; left: -50%; width: 200%; height: 200%;
             background: 
@@ -99,7 +98,6 @@
         .arrow-left.active-arrow { transform: translateY(-50%) scale(1.3); }
         .arrow-right.active-arrow { transform: translateY(-50%) scale(1.3); }
 
-        /* 左上角等級顯示 */
         #level-display {
             position: absolute; top: 15px; left: 20px;
             font-size: 2.2rem; font-weight: bold; font-style: italic;
@@ -207,6 +205,8 @@
         <button onclick="resetGame()">重新部署</button>
     </div>
 
+    <script src="vocabulary.js"></script>
+
     <script>
         const flickMap = {
             'あ': { key: 'あ', arrow: '', romaji: 'a' }, 'い': { key: 'あ', arrow: 'left', romaji: 'i' }, 'う': { key: 'あ', arrow: 'up', romaji: 'u' }, 'え': { key: 'あ', arrow: 'right', romaji: 'e' }, 'お': { key: 'あ', arrow: 'down', romaji: 'o' },
@@ -227,58 +227,6 @@
             'ー': { key: 'わ', arrow: 'right', romaji: '-' },
             'ゃ': { key: 'や', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', arrow: 'up', romaji: 'tsu' }
         };
-
-        const vocabularyBase = [
-            { kanji: "狗", reading: "いぬ" }, { kanji: "貓", reading: "ねこ" }, { kanji: "傘", reading: "かさ" },
-            { kanji: "肉", reading: "にく" }, { kanji: "車站", reading: "えき" }, { kanji: "秋天", reading: "あき" },
-            { kanji: "春天", reading: "はる" }, { kanji: "夏天", reading: "なつ" }, { kanji: "冬天", reading: "ふゆ" },
-            { kanji: "橋", reading: "はし" }, { kanji: "寺廟", reading: "てら" }, { kanji: "鞋子", reading: "くつ" },
-            { kanji: "頭髮", reading: "かみ" }, { kanji: "雪", reading: "ゆき" }, { kanji: "雨", reading: "あめ" },
-            { kanji: "山", reading: "やま" }, { kanji: "河川", reading: "かわ" }, { kanji: "海", reading: "うみ" },
-            { kanji: "星星", reading: "ほし" }, { kanji: "天空", reading: "そら" }, { kanji: "月亮", reading: "つき" },
-            { kanji: "花", reading: "はな" }, { kanji: "鳥", reading: "とり" }, { kanji: "石頭", reading: "いし" },
-            { kanji: "線", reading: "いと" }, { kanji: "錢", reading: "かね" }, { kanji: "臉", reading: "かお" },
-            { kanji: "嘴巴", reading: "くち" }, { kanji: "耳朵", reading: "みみ" }, { kanji: "腳", reading: "あし" },
-            { kanji: "牛", reading: "うし" }, { kanji: "豬", reading: "ぶた" }, { kanji: "馬", reading: "うま" },
-            { kanji: "魚", reading: "さかな" }, { kanji: "水", reading: "みず" }, { kanji: "酒", reading: "さけ" },
-            { kanji: "書", reading: "ほん" }, { kanji: "家", reading: "いえ" }, { kanji: "房間", reading: "へや" },
-            
-            { kanji: "相機", reading: "かめら" }, { kanji: "藥", reading: "くすり" }, { kanji: "飯店", reading: "ほてる" },
-            { kanji: "滑雪", reading: "すきー" }, { kanji: "行李", reading: "にもつ" }, { kanji: "車票", reading: "きっぷ" },
-            { kanji: "秘密", reading: "ひみつ" }, { kanji: "櫻花", reading: "さくら" }, { kanji: "汽車", reading: "くるま" },
-            { kanji: "香菸", reading: "たばこ" }, { kanji: "包包", reading: "かばん" }, { kanji: "錢包", reading: "さいふ" },
-            { kanji: "時鐘", reading: "とけい" }, { kanji: "眼鏡", reading: "めがね" }, { kanji: "帽子", reading: "ぼうし" },
-            { kanji: "襯衫", reading: "しゃつ" }, { kanji: "蘋果", reading: "りんご" }, { kanji: "橘子", reading: "みかん" },
-            { kanji: "香蕉", reading: "ばなな" }, { kanji: "草莓", reading: "いちご" }, { kanji: "西瓜", reading: "すいか" },
-            { kanji: "雞蛋", reading: "たまご" }, { kanji: "綠茶", reading: "おちゃ" }, { kanji: "壽司", reading: "すし" },
-            { kanji: "狐狸", reading: "きつね" }, { kanji: "狸貓", reading: "たぬき" }, { kanji: "老鼠", reading: "ねずみ" },
-            { kanji: "雲", reading: "くも" }, { kanji: "風", reading: "かぜ" }, { kanji: "白飯", reading: "ごはん" },
-            { kanji: "麵包", reading: "ぱん" }, { kanji: "朋友", reading: "ともだち" }, { kanji: "頭", reading: "あたま" },
-            { kanji: "大", reading: "おおきい" }, { kanji: "小", reading: "ちいさい" }, { kanji: "高貴", reading: "たかい" },
-            { kanji: "便宜", reading: "やすい" }, { kanji: "熱", reading: "あつい" }, { kanji: "冷", reading: "さむい" },
-
-            { kanji: "拉麵", reading: "らーめん" }, { kanji: "地下鐵", reading: "ちかてつ" }, { kanji: "東京", reading: "とうきょう" },
-            { kanji: "飯糰", reading: "おにぎり" }, { kanji: "烤肉串", reading: "やきとり" }, { kanji: "鉛筆", reading: "えんぴつ" },
-            { kanji: "橡皮擦", reading: "けしごむ" }, { kanji: "電腦", reading: "ぱそこん" }, { kanji: "手機", reading: "けいたい" },
-            { kanji: "老師", reading: "せんせい" }, { kanji: "學生", reading: "がくせい" }, { kanji: "大學", reading: "だいがく" },
-            { kanji: "郵局", reading: "ゆうびん" }, { kanji: "飛機", reading: "ひこうき" }, { kanji: "電風扇", reading: "せんぷう" },
-            { kanji: "冰箱", reading: "れいぞう" }, { kanji: "洗衣服", reading: "せんたく" }, { kanji: "吸塵器", reading: "そうじき" },
-            { kanji: "太陽", reading: "たいよう" }, { kanji: "打雷", reading: "かみなり" }, { kanji: "烤肉", reading: "やきにく" },
-            { kanji: "生魚片", reading: "さしみ" }, { kanji: "天婦羅", reading: "てんぷら" }, { kanji: "牛丼", reading: "ぎゅうどん" },
-            { kanji: "水果", reading: "くだもの" }, { kanji: "葡萄", reading: "ぶどう" }, { kanji: "大阪", reading: "おおさか" },
-            { kanji: "京都", reading: "きょうと" }, { kanji: "學校", reading: "がっこう" }, { kanji: "銀行", reading: "ぎんこう" },
-            { kanji: "公園", reading: "こうえん" }, { kanji: "神社", reading: "じんじゃ" }, { kanji: "電車", reading: "でんしゃ" },
-            { kanji: "椅子", reading: "いす" }, { kanji: "桌子", reading: "つくえ" }, { kanji: "字典", reading: "じしょ" },
-            { kanji: "報紙", reading: "しんぶん" }, { kanji: "雜誌", reading: "ざっし" }, { kanji: "鑰匙", reading: "かぎ" },
-
-            { kanji: "早安", reading: "おはよう" }, { kanji: "謝謝", reading: "ありがとう" }, { kanji: "對不起", reading: "すみません" },
-            { kanji: "我開動了", reading: "いただきます" }, { kanji: "多謝款待", reading: "ごちそうさま" }, { kanji: "辛苦了", reading: "おつかれさま" },
-            { kanji: "恭喜", reading: "おめでとう" }, { kanji: "新幹線", reading: "しんかんせん" }, { kanji: "圖書館", reading: "としょかん" },
-            { kanji: "腳踏車", reading: "じてんしゃ" }, { kanji: "電冰箱", reading: "れいぞうこ" }, { kanji: "洗衣機", reading: "せんたくき" },
-            { kanji: "屋頂", reading: "おくじょう" }, { kanji: "警察局", reading: "けいさつしょ" }, { kanji: "消防局", reading: "しょうぼうしょ" },
-            { kanji: "郵局", reading: "ゆうびんきょく" }, { kanji: "電影院", reading: "えいがかん" }, { kanji: "晚安", reading: "おやすみ" },
-            { kanji: "再見", reading: "さようなら" }, { kanji: "歡迎光臨", reading: "いらっしゃい" }, { kanji: "醫院", reading: "びょういん" }
-        ];
 
         let wordPools = [[], [], [], []];
         let animationFrameId;
@@ -352,6 +300,7 @@
 
         function initPools() {
             wordPools = [[], [], [], []];
+            // 注意：這裡現在使用外部 vocabulary.js 載入的 vocabularyBase 陣列
             let shuffled = [...vocabularyBase].sort(() => Math.random() - 0.5);
             shuffled.forEach(word => {
                 let diff = getWordDifficulty(word);
@@ -409,14 +358,13 @@
             ], { duration: 2500, easing: 'ease-out' });
         }
 
-        // 動態更新左上角等級與整體場景顏色
         function updateLevelUI(tier) {
             document.getElementById('level-display').textContent = `LV.${tier + 1}`;
             const colors = [
-                { tunnel: 'rgba(0, 255, 255, 0.2)', text: '#00FFFF' }, // LV.1 青色
-                { tunnel: 'rgba(0, 255, 0, 0.2)', text: '#00FF00' },   // LV.2 綠色
-                { tunnel: 'rgba(255, 215, 0, 0.25)', text: '#FFD700' },// LV.3 金黃
-                { tunnel: 'rgba(255, 50, 50, 0.3)', text: '#FF3333' }  // LV.4 警戒紅
+                { tunnel: 'rgba(0, 255, 255, 0.2)', text: '#00FFFF' }, 
+                { tunnel: 'rgba(0, 255, 0, 0.2)', text: '#00FF00' },   
+                { tunnel: 'rgba(255, 215, 0, 0.25)', text: '#FFD700' },
+                { tunnel: 'rgba(255, 50, 50, 0.3)', text: '#FF3333' }  
             ];
             rootStyles.style.setProperty('--tunnel-color', colors[tier].tunnel);
             rootStyles.style.setProperty('--level-color', colors[tier].text);
