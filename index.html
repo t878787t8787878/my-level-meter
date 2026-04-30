@@ -173,7 +173,7 @@
     <div id="start-overlay" class="overlay">
         <h1 style="color:#00FFFF">iPhone 肌肉記憶特訓</h1>
         <p style="line-height:1.6; color:#ccc;">
-            每過 5 題難度將強制升階，單字長度增加。<br>
+            每過 5 題難度將強制升階，單字複雜度增加。<br>
             系統將逐步剝奪你的視覺提示。<br>
             極限反應時間：5.0 秒。請在逼近前將其擊碎！
         </p>
@@ -188,7 +188,6 @@
     </div>
 
     <script>
-        // 全面擴充字典檔：加入所有濁音、半濁音與基礎按鍵映射
         const flickMap = {
             'あ': { key: 'あ', arrow: '', romaji: 'a' }, 'い': { key: 'あ', arrow: 'left', romaji: 'i' }, 'う': { key: 'あ', arrow: 'up', romaji: 'u' }, 'え': { key: 'あ', arrow: 'right', romaji: 'e' }, 'お': { key: 'あ', arrow: 'down', romaji: 'o' },
             'か': { key: 'か', arrow: '', romaji: 'ka' }, 'き': { key: 'か', arrow: 'left', romaji: 'ki' }, 'く': { key: 'か', arrow: 'up', romaji: 'ku' }, 'け': { key: 'か', arrow: 'right', romaji: 'ke' }, 'こ': { key: 'か', arrow: 'down', romaji: 'ko' },
@@ -319,15 +318,32 @@
             return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
         }
 
+        // 新增：語彙複雜度加權計算
+        function getWordDifficulty(word) {
+            let diff = word.reading.length; // 基礎分為字數長度
+            
+            // 含有需要兩次按鍵的濁音或半濁音：難度大幅增加
+            if (/[がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ]/.test(word.reading)) {
+                diff += 2;
+            }
+            
+            // 含有會影響打字節奏的小字或長音：難度頂天
+            if (/[ゃゅょっー]/.test(word.reading)) {
+                diff += 3;
+            }
+            return diff;
+        }
+
         function initPools() {
             wordPools = [[], [], [], []];
             let shuffled = [...vocabularyBase].sort(() => Math.random() - 0.5);
             shuffled.forEach(word => {
-                let len = word.reading.length;
-                if (len <= 3) wordPools[0].push(word);
-                else if (len === 4) wordPools[1].push(word);
-                else if (len === 5) wordPools[2].push(word);
-                else wordPools[3].push(word);
+                let diff = getWordDifficulty(word);
+                // 根據複雜度精準分級
+                if (diff <= 3) wordPools[0].push(word);       // 階段0：純短清音 (如: いぬ)
+                else if (diff <= 5) wordPools[1].push(word);  // 階段1：稍長清音或短濁音 (如: りんご)
+                else if (diff <= 7) wordPools[2].push(word);  // 階段2：長音或中長濁音 (如: ありがとう)
+                else wordPools[3].push(word);                 // 階段3：終極混合魔王 (如: じてんしゃ)
             });
         }
 
@@ -378,27 +394,25 @@
         }
 
         function applyRulesByScore() {
-            let newTier = Math.floor(score / 5);
-            
             hideArrows = false;
             hideRomaji = false;
             useKatakana = false;
 
             if (score >= 5 && score < 10) {
                 hideArrows = true;
-                if (currentTier !== 1) { currentTier = 1; showLevelUpToast("⚠️ 階段 1：隱藏方向箭頭"); }
+                if (currentTier !== 1) { currentTier = 1; showLevelUpToast("⚠️ 階段 1：單字變長、隱藏箭頭"); }
             } 
             else if (score >= 10 && score < 15) {
                 hideArrows = true;
                 if (Math.random() > 0.5) hideRomaji = true;
                 else useKatakana = true;
-                if (currentTier !== 2) { currentTier = 2; showLevelUpToast("⚠️ 階段 2：隨機混淆視聽"); }
+                if (currentTier !== 2) { currentTier = 2; showLevelUpToast("⚠️ 階段 2：出現複雜音、隨機干擾"); }
             } 
             else if (score >= 15) {
                 hideArrows = true;
                 hideRomaji = true;
                 useKatakana = true;
-                if (currentTier !== 3) { currentTier = 3; showLevelUpToast("🔥 最終階段：極限盲打模式"); }
+                if (currentTier !== 3) { currentTier = 3; showLevelUpToast("🔥 最終階段：複合長單字盲打"); }
             }
         }
 
@@ -619,17 +633,21 @@
 
             applyRulesByScore();
 
-            let poolIndex = Math.min(Math.floor(score / 5), 3);
+            // 根據當前題數(分數)決定難度，每5題一個階段 (最高階段3)
+            let targetPool = Math.min(Math.floor(score / 5), 3);
             
-            while (poolIndex >= 0 && wordPools[poolIndex].length === 0) {
-                poolIndex--;
+            // 嘗試從目標難度池抽取，如果空了就往低難度找
+            while (targetPool >= 0 && wordPools[targetPool].length === 0) {
+                targetPool--;
             }
-            if (poolIndex < 0) {
+            
+            // 如果連最低難度都空了，代表全破一輪，重新洗牌
+            if (targetPool < 0) {
                 initPools();
-                poolIndex = Math.min(Math.floor(score / 5), 3);
+                targetPool = Math.min(Math.floor(score / 5), 3);
             }
             
-            const word = wordPools[poolIndex].pop();
+            const word = wordPools[targetPool].pop();
             targetKana = word.reading;
 
             kanjiDisplay.textContent = word.kanji;
