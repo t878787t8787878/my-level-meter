@@ -61,7 +61,7 @@
         .romaji-char {
             font-size: 1.2rem; font-weight: bold; color: #666; margin-top: 5px;
             transition: color 0.1s, text-shadow 0.1s; font-family: monospace; letter-spacing: 1px;
-            display: inline-block; height: 1.5rem; /* 確保隱藏時不跑版 */
+            display: inline-block; height: 1.5rem;
         }
         .romaji-char.correct { color: #00FF00; text-shadow: 0 0 10px #00FF00; }
         .romaji-char.active { color: #00FFFF; text-shadow: 0 0 10px #00FFFF; }
@@ -95,7 +95,6 @@
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
 
-        /* 階段提升警告文字特效 */
         #level-up-toast {
             position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%);
             font-size: 1.8rem; font-weight: bold; color: #FF00FF; text-shadow: 0 0 15px #FF00FF, 2px 2px 5px #000;
@@ -189,19 +188,25 @@
     </div>
 
     <script>
+        // 全面擴充字典檔：加入所有濁音、半濁音與基礎按鍵映射
         const flickMap = {
-            'あ': { key: 'あ', dir: '點擊', arrow: '', romaji: 'a' }, 'い': { key: 'あ', dir: '左滑', arrow: 'left', romaji: 'i' }, 'う': { key: 'あ', dir: '上滑', arrow: 'up', romaji: 'u' }, 'え': { key: 'あ', dir: '右滑', arrow: 'right', romaji: 'e' }, 'お': { key: 'あ', dir: '下滑', arrow: 'down', romaji: 'o' },
-            'か': { key: 'か', dir: '點擊', arrow: '', romaji: 'ka' }, 'き': { key: 'か', dir: '左滑', arrow: 'left', romaji: 'ki' }, 'く': { key: 'か', dir: '上滑', arrow: 'up', romaji: 'ku' }, 'け': { key: 'か', dir: '右滑', arrow: 'right', romaji: 'ke' }, 'こ': { key: 'か', dir: '下滑', arrow: 'down', romaji: 'ko' },
-            'さ': { key: 'さ', dir: '點擊', arrow: '', romaji: 'sa' }, 'し': { key: 'さ', dir: '左滑', arrow: 'left', romaji: 'shi' }, 'す': { key: 'さ', dir: '上滑', arrow: 'up', romaji: 'su' }, 'せ': { key: 'さ', dir: '右滑', arrow: 'right', romaji: 'se' }, 'そ': { key: 'さ', dir: '下滑', arrow: 'down', romaji: 'so' },
-            'た': { key: 'た', dir: '點擊', arrow: '', romaji: 'ta' }, 'ち': { key: 'た', dir: '左滑', arrow: 'left', romaji: 'chi' }, 'つ': { key: 'た', dir: '上滑', arrow: 'up', romaji: 'tsu' }, 'て': { key: 'た', dir: '右滑', arrow: 'right', romaji: 'te' }, 'と': { key: 'た', dir: '下滑', arrow: 'down', romaji: 'to' },
-            'な': { key: 'な', dir: '點擊', arrow: '', romaji: 'na' }, 'に': { key: 'な', dir: '左滑', arrow: 'left', romaji: 'ni' }, 'ぬ': { key: 'な', dir: '上滑', arrow: 'up', romaji: 'nu' }, 'ね': { key: 'な', dir: '右滑', arrow: 'right', romaji: 'ne' }, 'の': { key: 'な', dir: '下滑', arrow: 'down', romaji: 'no' },
-            'は': { key: 'は', dir: '點擊', arrow: '', romaji: 'ha' }, 'ひ': { key: 'は', dir: '左滑', arrow: 'left', romaji: 'hi' }, 'ふ': { key: 'は', dir: '上滑', arrow: 'up', romaji: 'fu' }, 'へ': { key: 'は', dir: '右滑', arrow: 'right', romaji: 'he' }, 'ほ': { key: 'は', dir: '下滑', arrow: 'down', romaji: 'ho' },
-            'ま': { key: 'ま', dir: '點擊', arrow: '', romaji: 'ma' }, 'み': { key: 'ま', dir: '左滑', arrow: 'left', romaji: 'mi' }, 'む': { key: 'ま', dir: '上滑', arrow: 'up', romaji: 'mu' }, 'め': { key: 'ま', dir: '右滑', arrow: 'right', romaji: 'me' }, 'も': { key: 'ま', dir: '下滑', arrow: 'down', romaji: 'mo' },
-            'や': { key: 'や', dir: '點擊', arrow: '', romaji: 'ya' }, 'ゆ': { key: 'や', dir: '上滑', arrow: 'up', romaji: 'yu' }, 'よ': { key: 'や', dir: '下滑', arrow: 'down', romaji: 'yo' }, 
-            'ら': { key: 'ら', dir: '點擊', arrow: '', romaji: 'ra' }, 'り': { key: 'ら', dir: '左滑', arrow: 'left', romaji: 'ri' }, 'る': { key: 'ら', dir: '上滑', arrow: 'up', romaji: 'ru' }, 'れ': { key: 'ら', dir: '右滑', arrow: 'right', romaji: 're' }, 'ろ': { key: 'ら', dir: '下滑', arrow: 'down', romaji: 'ro' },
-            'わ': { key: 'わ', dir: '點擊', arrow: '', romaji: 'wa' }, 'を': { key: 'わ', dir: '左滑', arrow: 'left', romaji: 'wo' }, 'ん': { key: 'わ', dir: '上滑', arrow: 'up', romaji: 'n' },
-            'ー': { key: 'わ', dir: '右滑', arrow: 'right', romaji: '-' },
-            'ゃ': { key: 'や', dir: '點擊', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', dir: '上滑', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', dir: '下滑', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', dir: '上滑', arrow: 'up', romaji: 'tsu' }
+            'あ': { key: 'あ', arrow: '', romaji: 'a' }, 'い': { key: 'あ', arrow: 'left', romaji: 'i' }, 'う': { key: 'あ', arrow: 'up', romaji: 'u' }, 'え': { key: 'あ', arrow: 'right', romaji: 'e' }, 'お': { key: 'あ', arrow: 'down', romaji: 'o' },
+            'か': { key: 'か', arrow: '', romaji: 'ka' }, 'き': { key: 'か', arrow: 'left', romaji: 'ki' }, 'く': { key: 'か', arrow: 'up', romaji: 'ku' }, 'け': { key: 'か', arrow: 'right', romaji: 'ke' }, 'こ': { key: 'か', arrow: 'down', romaji: 'ko' },
+            'が': { key: 'か', arrow: '', romaji: 'ga' }, 'ぎ': { key: 'か', arrow: 'left', romaji: 'gi' }, 'ぐ': { key: 'か', arrow: 'up', romaji: 'gu' }, 'げ': { key: 'か', arrow: 'right', romaji: 'ge' }, 'ご': { key: 'か', arrow: 'down', romaji: 'go' },
+            'さ': { key: 'さ', arrow: '', romaji: 'sa' }, 'し': { key: 'さ', arrow: 'left', romaji: 'shi' }, 'す': { key: 'さ', arrow: 'up', romaji: 'su' }, 'せ': { key: 'さ', arrow: 'right', romaji: 'se' }, 'そ': { key: 'さ', arrow: 'down', romaji: 'so' },
+            'ざ': { key: 'さ', arrow: '', romaji: 'za' }, 'じ': { key: 'さ', arrow: 'left', romaji: 'ji' }, 'ず': { key: 'さ', arrow: 'up', romaji: 'zu' }, 'ぜ': { key: 'さ', arrow: 'right', romaji: 'ze' }, 'ぞ': { key: 'さ', arrow: 'down', romaji: 'zo' },
+            'た': { key: 'た', arrow: '', romaji: 'ta' }, 'ち': { key: 'た', arrow: 'left', romaji: 'chi' }, 'つ': { key: 'た', arrow: 'up', romaji: 'tsu' }, 'て': { key: 'た', arrow: 'right', romaji: 'te' }, 'と': { key: 'た', arrow: 'down', romaji: 'to' },
+            'だ': { key: 'た', arrow: '', romaji: 'da' }, 'ぢ': { key: 'た', arrow: 'left', romaji: 'ji' }, 'づ': { key: 'た', arrow: 'up', romaji: 'zu' }, 'で': { key: 'た', arrow: 'right', romaji: 'de' }, 'ど': { key: 'た', arrow: 'down', romaji: 'do' },
+            'な': { key: 'な', arrow: '', romaji: 'na' }, 'に': { key: 'な', arrow: 'left', romaji: 'ni' }, 'ぬ': { key: 'な', arrow: 'up', romaji: 'nu' }, 'ね': { key: 'な', arrow: 'right', romaji: 'ne' }, 'の': { key: 'な', arrow: 'down', romaji: 'no' },
+            'は': { key: 'は', arrow: '', romaji: 'ha' }, 'ひ': { key: 'は', arrow: 'left', romaji: 'hi' }, 'ふ': { key: 'は', arrow: 'up', romaji: 'fu' }, 'へ': { key: 'は', arrow: 'right', romaji: 'he' }, 'ほ': { key: 'は', arrow: 'down', romaji: 'ho' },
+            'ば': { key: 'は', arrow: '', romaji: 'ba' }, 'び': { key: 'は', arrow: 'left', romaji: 'bi' }, 'ぶ': { key: 'は', arrow: 'up', romaji: 'bu' }, 'べ': { key: 'は', arrow: 'right', romaji: 'be' }, 'ぼ': { key: 'は', arrow: 'down', romaji: 'bo' },
+            'ぱ': { key: 'は', arrow: '', romaji: 'pa' }, 'ぴ': { key: 'は', arrow: 'left', romaji: 'pi' }, 'ぷ': { key: 'は', arrow: 'up', romaji: 'pu' }, 'ぺ': { key: 'は', arrow: 'right', romaji: 'pe' }, 'ぽ': { key: 'は', arrow: 'down', romaji: 'po' },
+            'ま': { key: 'ま', arrow: '', romaji: 'ma' }, 'み': { key: 'ま', arrow: 'left', romaji: 'mi' }, 'む': { key: 'ま', arrow: 'up', romaji: 'mu' }, 'め': { key: 'ま', arrow: 'right', romaji: 'me' }, 'も': { key: 'ま', arrow: 'down', romaji: 'mo' },
+            'や': { key: 'や', arrow: '', romaji: 'ya' }, 'ゆ': { key: 'や', arrow: 'up', romaji: 'yu' }, 'よ': { key: 'や', arrow: 'down', romaji: 'yo' }, 
+            'ら': { key: 'ら', arrow: '', romaji: 'ra' }, 'り': { key: 'ら', arrow: 'left', romaji: 'ri' }, 'る': { key: 'ら', arrow: 'up', romaji: 'ru' }, 'れ': { key: 'ら', arrow: 'right', romaji: 're' }, 'ろ': { key: 'ら', arrow: 'down', romaji: 'ro' },
+            'わ': { key: 'わ', arrow: '', romaji: 'wa' }, 'を': { key: 'わ', arrow: 'left', romaji: 'wo' }, 'ん': { key: 'わ', arrow: 'up', romaji: 'n' },
+            'ー': { key: 'わ', arrow: 'right', romaji: '-' },
+            'ゃ': { key: 'や', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', arrow: 'up', romaji: 'tsu' }
         };
 
         const vocabularyBase = [
@@ -304,7 +309,6 @@
         }
         window.visualViewport.addEventListener('resize', resizeLayout);
 
-        // 將平假名轉為片假名
         function toKatakana(hiragana) {
             return hiragana.replace(/[\u3041-\u3096]/g, match => {
                 return String.fromCharCode(match.charCodeAt(0) + 0x60);
@@ -376,7 +380,6 @@
         function applyRulesByScore() {
             let newTier = Math.floor(score / 5);
             
-            // 基礎設定歸零
             hideArrows = false;
             hideRomaji = false;
             useKatakana = false;
@@ -387,7 +390,6 @@
             } 
             else if (score >= 10 && score < 15) {
                 hideArrows = true;
-                // 第二階段：每一題隨機選擇一種干擾
                 if (Math.random() > 0.5) hideRomaji = true;
                 else useKatakana = true;
                 if (currentTier !== 2) { currentTier = 2; showLevelUpToast("⚠️ 階段 2：隨機混淆視聽"); }
@@ -417,7 +419,6 @@
             for (let dir in arrowElements) {
                 arrowElements[dir].el.textContent = arrowElements[dir].hollow;
                 arrowElements[dir].el.classList.remove('active-arrow');
-                // 根據當前難度規則動態隱藏箭頭
                 arrowElements[dir].el.style.opacity = hideArrows ? '0' : '1';
             }
 
@@ -616,13 +617,10 @@
             hiddenInput.value = ''; matchCount = 0;
             hiddenInput.focus();
 
-            // 套用難度規則
             applyRulesByScore();
 
-            // 根據分數決定從哪個難度的字庫抽字 (每 5 題升級)
             let poolIndex = Math.min(Math.floor(score / 5), 3);
             
-            // 如果該難度字庫空了，就往下找難度較低的，如果全空就重新洗牌
             while (poolIndex >= 0 && wordPools[poolIndex].length === 0) {
                 poolIndex--;
             }
@@ -638,7 +636,6 @@
             
             kanaDisplay.innerHTML = targetKana.split('').map((c, i) => {
                 const hint = flickMap[toHiragana(c)] || { romaji: '?' };
-                // 根據規則動態渲染：是否轉片假名？是否隱藏羅馬拼音？
                 const displayChar = useKatakana ? toKatakana(c) : c;
                 const displayRomaji = hideRomaji ? '' : hint.romaji.toUpperCase();
 
