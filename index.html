@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>iPhone 日文 Flick 漸進特訓</title>
+    <title>iPhone 片假名盲打特訓</title>
     <style>
         :root {
             --tunnel-color: rgba(0, 255, 255, 0.2);
@@ -65,13 +65,13 @@
         .kana-char.correct { color: #00FF00; text-shadow: 0 0 20px #00FF00; }
         .kana-char.active { color: #00FFFF; text-shadow: 0 0 15px #00FFFF; border-bottom: 4px solid #00FFFF; }
 
+        /* 羅馬拼音現在由 JS 完全接管透明度與顏色動畫 */
         .romaji-char {
-            font-size: 1.2rem; font-weight: bold; color: #666; margin-top: 5px;
-            transition: color 0.1s, text-shadow 0.1s; font-family: monospace; letter-spacing: 1px;
+            font-size: 1.2rem; font-weight: bold; margin-top: 5px;
+            transition: opacity 0.2s, color 0.2s, text-shadow 0.2s, transform 0.2s; 
+            font-family: monospace; letter-spacing: 1px;
             display: inline-block; height: 1.5rem;
         }
-        .romaji-char.correct { color: #00FF00; text-shadow: 0 0 10px #00FF00; }
-        .romaji-char.active { color: #00FFFF; text-shadow: 0 0 10px #00FFFF; }
 
         #flick-key-icon {
             position: absolute; bottom: 25px; left: 25px;
@@ -85,10 +85,11 @@
         #key-main-char { font-size: 2.4rem; font-weight: bold; color: #fff; z-index: 2; }
 
         .arrow {
-            position: absolute; font-size: 1.2rem; color: #444; font-weight: bold;
-            transition: opacity 0.3s, color 0.2s, transform 0.2s; font-family: 'Arial', sans-serif; z-index: 1;
+            position: absolute; font-size: 1.2rem; font-weight: bold;
+            transition: opacity 0.3s, color 0.2s, transform 0.2s, text-shadow 0.2s; 
+            font-family: 'Arial', sans-serif; z-index: 1;
         }
-        .arrow.active-arrow { color: #1E90FF; text-shadow: 0 0 10px #1E90FF; }
+        
         .arrow-up { top: 2px; left: 50%; transform: translateX(-50%); }
         .arrow-down { bottom: 2px; left: 50%; transform: translateX(-50%); }
         .arrow-left { left: 4px; top: 50%; transform: translateY(-50%); }
@@ -189,11 +190,11 @@
     </div>
 
     <div id="start-overlay" class="overlay">
-        <h1 style="color:#00FFFF">iPhone 肌肉記憶特訓</h1>
+        <h1 style="color:#00FFFF">大腦重塑：片假名盲打特訓</h1>
         <p style="line-height:1.6; color:#ccc;">
-            每過 5 題難度將強制升階，單字複雜度增加。<br>
-            系統將逐步剝奪你的視覺提示。<br>
-            極限反應時間：5.0 秒。請在逼近前將其擊碎！
+            全面切換至「片假名」顯示，強迫視覺聯想。<br>
+            提示會隨時間淡出，若大腦卡住 1.5 秒將觸發紅色救援。<br>
+            極限反應時間：5.0 秒。準備好你的神經反射！
         </p>
         <button onclick="initGame()">啟動特訓引擎</button>
     </div>
@@ -205,6 +206,7 @@
         <button onclick="resetGame()">重新部署</button>
     </div>
 
+    <!-- 載入獨立的單字資料庫 -->
     <script src="vocabulary.js"></script>
 
     <script>
@@ -240,10 +242,10 @@
         let currentTier = 0;
         
         let calculatedTargetScale = 2;
-
-        let hideArrows = false;
-        let hideRomaji = false;
-        let useKatakana = false;
+        
+        // 延遲救援核心變數
+        let stuckTime = 0;
+        let isRescued = false;
 
         const hiddenInput = document.getElementById('hidden-input');
         const vpContainer = document.getElementById('visual-viewport-container');
@@ -277,6 +279,7 @@
         }
         window.visualViewport.addEventListener('resize', resizeLayout);
 
+        // 將平假名轉為片假名
         function toKatakana(hiragana) {
             return hiragana.replace(/[\u3041-\u3096]/g, match => {
                 return String.fromCharCode(match.charCodeAt(0) + 0x60);
@@ -300,7 +303,6 @@
 
         function initPools() {
             wordPools = [[], [], [], []];
-            // 注意：這裡現在使用外部 vocabulary.js 載入的 vocabularyBase 陣列
             let shuffled = [...vocabularyBase].sort(() => Math.random() - 0.5);
             shuffled.forEach(word => {
                 let diff = getWordDifficulty(word);
@@ -372,35 +374,25 @@
 
         function applyRulesByScore() {
             let newTier = Math.min(Math.floor(score / 5), 3);
-            
-            hideArrows = false;
-            hideRomaji = false;
-            useKatakana = false;
 
-            if (newTier === 1) {
-                hideArrows = true;
-                if (currentTier !== 1) { currentTier = 1; showLevelUpToast("⚠️ 階段升級：隱藏箭頭"); updateLevelUI(1); }
+            if (newTier === 1 && currentTier !== 1) {
+                currentTier = 1; showLevelUpToast("⚠️ 階段升級：移除初始拼音"); updateLevelUI(1);
             } 
-            else if (newTier === 2) {
-                hideArrows = true;
-                if (Math.random() > 0.5) hideRomaji = true;
-                else useKatakana = true;
-                if (currentTier !== 2) { currentTier = 2; showLevelUpToast("⚠️ 階段升級：視覺混淆發動"); updateLevelUI(2); }
+            else if (newTier === 2 && currentTier !== 2) {
+                currentTier = 2; showLevelUpToast("⚠️ 階段升級：救援延遲增加"); updateLevelUI(2);
             } 
-            else if (newTier >= 3) {
-                hideArrows = true;
-                hideRomaji = true;
-                useKatakana = true;
-                if (currentTier !== 3) { currentTier = 3; showLevelUpToast("🔥 最終階段：極限盲打模式"); updateLevelUI(3); }
-            } else {
-                if (currentTier !== 0) { currentTier = 0; updateLevelUI(0); }
+            else if (newTier >= 3 && currentTier !== 3) {
+                currentTier = 3; showLevelUpToast("🔥 最終階段：無救援模式"); updateLevelUI(3);
+            } 
+            else if (newTier === 0 && currentTier !== 0) {
+                currentTier = 0; updateLevelUI(0);
             }
-            
-            if (score === 0) updateLevelUI(0);
         }
 
+        // 動態更新九宮格箭頭 (受延遲救援系統控制)
         function updateFlickHint() {
             const char = targetKana[matchCount];
+            if (!char) return;
             const hiraChar = toHiragana(char); 
             const hint = flickMap[hiraChar] || { key: '?', arrow: '' };
 
@@ -416,12 +408,19 @@
             for (let dir in arrowElements) {
                 arrowElements[dir].el.textContent = arrowElements[dir].hollow;
                 arrowElements[dir].el.classList.remove('active-arrow');
-                arrowElements[dir].el.style.opacity = hideArrows ? '0' : '1';
+                // 箭頭預設隱藏，只在觸發「救援」時以紅色顯示
+                arrowElements[dir].el.style.opacity = isRescued ? '1' : '0';
+                arrowElements[dir].el.style.color = '#444';
+                arrowElements[dir].el.style.textShadow = 'none';
             }
 
             if (hint.arrow && arrowElements[hint.arrow]) {
                 arrowElements[hint.arrow].el.textContent = arrowElements[hint.arrow].solid;
                 arrowElements[hint.arrow].el.classList.add('active-arrow');
+                if (isRescued) {
+                    arrowElements[hint.arrow].el.style.color = '#FF4444';
+                    arrowElements[hint.arrow].el.style.textShadow = '0 0 15px #FF4444';
+                }
             }
         }
 
@@ -436,18 +435,16 @@
                 fireLaser(matchCount);
                 matchCount++;
                 
+                // 答對時重置卡關時間與救援狀態
+                stuckTime = 0;
+                isRescued = false;
+                
                 hiddenInput.value = ''; 
                 
                 document.querySelectorAll('.kana-char').forEach((s, idx) => {
                     if (idx < matchCount) s.className = 'kana-char correct';
                     else if (idx === matchCount) s.className = 'kana-char active';
                     else s.className = 'kana-char';
-                });
-
-                document.querySelectorAll('.romaji-char').forEach((s, idx) => {
-                    if (idx < matchCount) s.className = 'romaji-char correct';
-                    else if (idx === matchCount) s.className = 'romaji-char active';
-                    else s.className = 'romaji-char';
                 });
 
                 if (matchCount === targetKana.length) {
@@ -559,6 +556,16 @@
 
             timeLeft -= deltaTime;
             
+            // 延遲救援系統計時
+            stuckTime += deltaTime;
+            let rescueThreshold = currentTier === 2 ? 2.0 : 1.5;
+            
+            // 如果卡關超時且尚未被救援，且不在最高難度(LV.4不給救)
+            if (currentTier < 3 && stuckTime > rescueThreshold && !isRescued) {
+                isRescued = true;
+                updateFlickHint(); // 觸發紅色箭頭顯示
+            }
+
             let progress = 1 - (timeLeft / currentDuration);
             if (progress > 1) progress = 1;
             if (progress < 0) progress = 0;
@@ -578,6 +585,42 @@
 
             wordContainer.style.transform = `scale(${currentScale}) translate(${shakeX}px, ${shakeY}px)`;
             wordContainer.style.opacity = Math.min(1, easeProgress * 5); 
+
+            // 記憶殘影機制：第一關在進度 0~20% 時迅速淡出
+            let baseRomajiOpacity = 0;
+            if (currentTier === 0) {
+                baseRomajiOpacity = Math.max(0, 1 - (progress / 0.2));
+            }
+
+            // 動態控制羅馬拼音的顯示狀態
+            document.querySelectorAll('.romaji-char').forEach((el, idx) => {
+                if (idx < matchCount) {
+                    // 已打完的字
+                    el.style.opacity = 1;
+                    el.style.color = '#00FF00';
+                    el.style.textShadow = '0 0 10px #00FF00';
+                    el.style.transform = 'scale(1)';
+                } else if (idx === matchCount) {
+                    // 正在打的字
+                    if (isRescued) {
+                        el.style.opacity = 1;
+                        el.style.color = '#FF4444'; // 救援紅
+                        el.style.textShadow = '0 0 15px #FF4444';
+                        el.style.transform = 'scale(1.2)';
+                    } else {
+                        el.style.opacity = baseRomajiOpacity;
+                        el.style.color = '#00FFFF';
+                        el.style.textShadow = '0 0 10px #00FFFF';
+                        el.style.transform = 'scale(1)';
+                    }
+                } else {
+                    // 還沒打到的字
+                    el.style.opacity = baseRomajiOpacity;
+                    el.style.color = '#666';
+                    el.style.textShadow = 'none';
+                    el.style.transform = 'scale(1)';
+                }
+            });
 
             updateTimerBar();
 
@@ -612,6 +655,8 @@
             wordContainer.style.filter = 'none';
 
             hiddenInput.value = ''; matchCount = 0;
+            stuckTime = 0;
+            isRescued = false;
             hiddenInput.focus();
 
             applyRulesByScore();
@@ -634,13 +679,14 @@
             
             kanaDisplay.innerHTML = targetKana.split('').map((c, i) => {
                 const hint = flickMap[toHiragana(c)] || { romaji: '?' };
-                const displayChar = useKatakana ? toKatakana(c) : c;
-                const displayRomaji = hideRomaji ? '' : hint.romaji.toUpperCase();
+                // 全面強制片假名化
+                const displayChar = toKatakana(c);
+                const displayRomaji = hint.romaji.toUpperCase();
 
                 return `
                 <div class="char-col" id="col-${i}">
                     <div id="char-${i}" class="kana-char ${i===0?'active':''}">${displayChar}</div>
-                    <div id="romaji-${i}" class="romaji-char ${i===0?'active':''}">${displayRomaji}</div>
+                    <div id="romaji-${i}" class="romaji-char">${displayRomaji}</div>
                 </div>`;
             }).join('');
 
