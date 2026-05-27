@@ -107,6 +107,15 @@
             transition: color 0.3s, text-shadow 0.3s;
         }
 
+        #btn-home {
+            position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
+            font-size: 0.9rem; font-weight: bold; color: #ccc; background: rgba(255,255,255,0.1);
+            padding: 6px 15px; border-radius: 20px; cursor: pointer; z-index: 50;
+            border: 1px solid #555; backdrop-filter: blur(5px);
+            transition: background 0.2s; display: none;
+        }
+        #btn-home:active { background: rgba(255,255,255,0.3); }
+
         #game-stats { position: absolute; top: 15px; right: 20px; text-align: right; z-index: 50; }
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
@@ -143,7 +152,7 @@
             justify-content: center; align-items: center; z-index: 100; padding: 20px; text-align: center;
         }
         
-        #resume-overlay { display: none; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
+        #resume-overlay, #pause-overlay { display: none; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
 
         button {
             padding: 12px 25px; font-size: 1.2rem; border: 2px solid #00FFFF; border-radius: 50px;
@@ -154,6 +163,7 @@
         
         .btn-practice { border-color: #555; color: #ccc; background: rgba(255,255,255,0.05); }
         .btn-stats { border-color: #FFD700; color: #FFD700; background: rgba(255,215,0,0.1); width: 100%; margin-top: 10px; }
+        .btn-danger { border-color: #FF4444; color: #FF4444; background: rgba(255,68,68,0.1); }
         
         .menu-section {
             background: rgba(0,0,0,0.6); border: 1px solid #333; border-radius: 15px;
@@ -169,9 +179,12 @@
             background: rgba(10, 10, 20, 0.95); z-index: 200; overflow-y: auto;
             flex-direction: column; align-items: center; padding: 20px 0;
         }
+        .stats-tabs { display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap; justify-content: center; }
+        .stats-tabs button { padding: 8px 15px; font-size: 0.9rem; border-radius: 20px; border: 1px solid #00FFFF; background: transparent; color: #00FFFF; margin: 0; }
+        .stats-tabs button.active { background: rgba(0,255,255,0.3); font-weight: bold; }
+        
         .stats-grid {
-            display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px;
-            margin-top: 20px; max-width: 100%; padding: 10px;
+            display: grid; gap: 4px; margin-top: 10px; max-width: 95%; padding: 10px; width: 100%;
         }
         .kana-cell {
             aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
@@ -200,6 +213,7 @@
         <div id="timer-bar-container"><div id="timer-bar"></div></div>
         
         <div id="level-display">LV.1</div>
+        <div id="btn-home" onclick="showPauseMenu()">🏠 返回主畫面</div>
 
         <div id="game-stats">
             <div id="score-display">擊破數: 0</div>
@@ -222,6 +236,14 @@
         </div>
     </div>
 
+    <div id="pause-overlay" class="overlay">
+        <h1 style="color:#00FFFF">特訓已暫停</h1>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+            <button onclick="resumeFromPause()">▶️ 繼續特訓</button>
+            <button class="btn-danger" onclick="returnToMenu()">🏠 返回主機庫</button>
+        </div>
+    </div>
+
     <div id="resume-overlay" class="overlay">
         <h1 style="color:#FFD700">系統中斷</h1>
         <p style="color:#ccc">點擊輸入框區域以重新展開武器面板</p>
@@ -229,11 +251,18 @@
     </div>
 
     <div id="stats-panel">
-        <h1 style="color:#FFD700; margin: 10px 0;">50音神經反射圖鑑</h1>
-        <p style="color:#ccc; margin-bottom: 5px; text-align: center; font-size: 0.9rem;">
-            基於真實反應時間與錯誤懲罰計算<br>(每次打錯 +2 秒懲罰)
+        <h1 style="color:#FFD700; margin: 10px 0; font-size: 1.5rem;">50音神經反射圖鑑</h1>
+        <p style="color:#ccc; margin-bottom: 15px; text-align: center; font-size: 0.85rem;">
+            基於真實反應時間與錯誤懲罰計算<br>(錯一次加 2 秒)
         </p>
         
+        <div class="stats-tabs">
+            <button id="tab-hira" class="active" onclick="renderStatsGrid('hira')">平假名</button>
+            <button id="tab-kata" onclick="renderStatsGrid('kata')">片假名</button>
+            <button id="tab-hira-daku" onclick="renderStatsGrid('hira-daku')">平(濁音)</button>
+            <button id="tab-kata-daku" onclick="renderStatsGrid('kata-daku')">片(濁音)</button>
+        </div>
+
         <div class="stats-grid" id="stats-grid-container">
             </div>
 
@@ -263,7 +292,7 @@
                 <label><input type="radio" name="cfg-type" value="mix" checked> 隨機</label>
             </div>
             <div style="text-align: center; margin-top: 15px;">
-                <button onclick="startGame(true, false)" style="width: 100%;">啟動單字元模式</button>
+                <button onclick="startGame(true, false)" style="width: 100%;">啟動單擊特訓</button>
                 <button class="btn-stats" onclick="openStats()">📊 學習成效 (熟悉度報表)</button>
             </div>
         </div>
@@ -283,7 +312,7 @@
         <p id="final-score" style="color:#FFD700; font-size:1.2rem;"></p>
         <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
             <button onclick="resetCurrentGame()">重新部署</button>
-            <button class="btn-practice" onclick="location.reload()">返回主選單</button>
+            <button class="btn-practice" onclick="returnToMenu()">返回主選單</button>
         </div>
     </div>
 
@@ -310,7 +339,6 @@
             'ゃ': { key: 'や', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', arrow: 'up', romaji: 'tsu' }
         };
 
-        // 有效的前置字元對照表，解決打濁音時中途被判定為錯誤的問題
         const baseMap = {
             'が':['か'], 'ぎ':['き'], 'ぐ':['く'], 'げ':['け'], 'ご':['こ'],
             'ざ':['さ'], 'じ':['し'], 'ず':['す'], 'ぜ':['せ'], 'ぞ':['そ'],
@@ -321,9 +349,7 @@
             'ゃ':['や'], 'ゅ':['ゆ'], 'ょ':['よ'], 'っ':['つ']
         };
 
-        const baseChars = Object.keys(flickMap).filter(k => k.length === 1 && k !== 'ー' && !['ゃ','ゅ','ょ','っ'].includes(k));
         let charStats = JSON.parse(localStorage.getItem('kanaFamiliarityStats')) || {};
-
         let wordPools = [[], [], [], []];
         let animationFrameId;
         let lastTime = 0;
@@ -345,7 +371,7 @@
         
         let charStartTime = 0;
         let lastAppearedChar = '';
-        let currentMistakes = 0; // 記錄當前單字的錯誤次數
+        let currentMistakes = 0; 
 
         const hiddenInput = document.getElementById('hidden-input');
         const vpContainer = document.getElementById('visual-viewport-container');
@@ -357,13 +383,14 @@
         const startOverlay = document.getElementById('start-overlay');
         const answerOverlay = document.getElementById('answer-overlay');
         const resumeOverlay = document.getElementById('resume-overlay');
+        const pauseOverlay = document.getElementById('pause-overlay');
 
         function resizeLayout() {
             if (window.visualViewport) {
                 vpContainer.style.height = window.visualViewport.height + 'px';
                 vpContainer.style.top = window.visualViewport.offsetTop + 'px';
                 if (window.visualViewport.height >= window.innerHeight * 0.85) {
-                    if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none' && resumeOverlay.style.display !== 'flex') {
+                    if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none' && pauseOverlay.style.display === 'none' && resumeOverlay.style.display !== 'flex') {
                         resumeOverlay.style.display = 'flex';
                         cancelAnimationFrame(animationFrameId); 
                     }
@@ -387,40 +414,82 @@
             return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
         }
 
+        // ====== 暫停與選單控制 ======
+        function showPauseMenu() {
+            cancelAnimationFrame(animationFrameId);
+            pauseOverlay.style.display = 'flex';
+            hiddenInput.blur();
+        }
+
+        function resumeFromPause() {
+            pauseOverlay.style.display = 'none';
+            hiddenInput.focus();
+            lastTime = 0;
+            animationFrameId = requestAnimationFrame(runTimer);
+        }
+
+        function returnToMenu() {
+            cancelAnimationFrame(animationFrameId);
+            pauseOverlay.style.display = 'none';
+            answerOverlay.style.display = 'none';
+            wordContainer.style.opacity = '0';
+            document.getElementById('btn-home').style.display = 'none';
+            startOverlay.style.display = 'flex';
+        }
+
         // ====== 儀表板與熟悉度演算法 ======
         function openStats() {
             document.getElementById('stats-panel').style.display = 'flex';
-            renderStatsGrid();
+            renderStatsGrid('hira'); // 預設顯示平假名
         }
 
         function closeStats() {
             document.getElementById('stats-panel').style.display = 'none';
         }
 
-        function renderStatsGrid() {
+        function renderStatsGrid(type) {
+            // 切換 active 樣式
+            document.querySelectorAll('.stats-tabs button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + type).classList.add('active');
+
             const container = document.getElementById('stats-grid-container');
             container.innerHTML = '';
             
-            // 經典五十音排序 (由右至左: あかさたなはまやらわん)
-            const gridLayout = [
+            const seionGrid = [
                 ['あ','か','さ','た','な','は','ま','や','ら','わ','ん'],
                 ['い','き','し','ち','に','ひ','み','','り','',''],
                 ['う','く','す','つ','ぬ','ふ','む','ゆ','る','',''],
                 ['え','け','せ','て','ね','へ','め','','れ','',''],
                 ['お','こ','そ','と','の','ほ','も','よ','ろ','を','']
             ];
+            
+            const dakuonGrid = [
+                ['が','ざ','だ','ば','ぱ'],
+                ['ぎ','じ','ぢ','び','ぴ'],
+                ['ぐ','ず','づ','ぶ','ぷ'],
+                ['げ','ぜ','で','べ','ぺ'],
+                ['ご','ぞ','ど','ぼ','ぽ']
+            ];
 
-            gridLayout.forEach(row => {
+            let gridSource = type.includes('daku') ? dakuonGrid : seionGrid;
+            container.style.gridTemplateColumns = type.includes('daku') ? 'repeat(5, 1fr)' : 'repeat(11, 1fr)';
+
+            gridSource.forEach(row => {
                 row.forEach(char => {
+                    let displayChar = char;
+                    if (type.includes('kata') && char) {
+                        displayChar = toKatakana(char);
+                    }
+
                     const cell = document.createElement('div');
-                    if (!char) {
+                    if (!displayChar) {
                         cell.style.visibility = 'hidden';
                     } else {
                         cell.className = 'kana-cell';
-                        cell.textContent = char;
+                        cell.textContent = displayChar;
                         
-                        if (charStats[char]) {
-                            const avg = charStats[char].avg;
+                        if (charStats[displayChar]) {
+                            const avg = charStats[displayChar].avg;
                             if (avg <= 1.0) cell.classList.add('rank-S');
                             else if (avg <= 1.5) cell.classList.add('rank-A');
                             else if (avg <= 2.0) cell.classList.add('rank-B');
@@ -444,9 +513,15 @@
 
         function getWeightedChar() {
             let pool = [];
-            baseChars.forEach(c => {
+            let candidates = [];
+            const hiraList = Object.keys(flickMap).filter(k => k.length === 1 && k !== 'ー' && !['ゃ','ゅ','ょ','っ'].includes(k));
+            
+            if (singleSettings.type === 'hira') candidates = hiraList;
+            else if (singleSettings.type === 'kata') candidates = hiraList.map(toKatakana);
+            else candidates = hiraList.concat(hiraList.map(toKatakana));
+
+            candidates.forEach(c => {
                 if (c === lastAppearedChar) return; 
-                
                 let weight = 1; 
                 if (charStats[c]) {
                     if (charStats[c].avg > 2.0) weight = 6;      
@@ -494,6 +569,9 @@
 
             startOverlay.style.display = 'none';
             answerOverlay.style.display = 'none';
+            pauseOverlay.style.display = 'none';
+            document.getElementById('btn-home').style.display = 'block'; // 顯示返回按鈕
+            
             score = 0;
             currentTier = 0;
             
@@ -620,16 +698,17 @@
             let targetChar = toHiragana(targetKana[matchCount]);
 
             if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
-                // 完全命中字元
+                // 完全命中，計算熟悉度
                 if (isSingleMode && matchCount === 0) {
-                    // 給予多擊字元物理時間寬容度 (濁音減0.3秒，半濁音減0.6秒)
+                    let displayedChar = document.getElementById('char-0').textContent;
+                    
                     let leniency = 0;
-                    if (['ぱ','ぴ','ぷ','ぺ','ぽ'].includes(targetChar)) leniency = 0.6;
-                    else if (baseMap[targetChar]) leniency = 0.3;
+                    if (['ぱ','ぴ','ぷ','ぺ','ぽ','パ','ピ','プ','ペ','ポ'].includes(displayedChar)) leniency = 0.6;
+                    else if (['が','ぎ','ぐ','げ','ご','ざ','じ','ず','ぜ','ぞ','だ','ぢ','づ','で','ど','ば','び','ぶ','べ','ぼ','ガ','ギ','グ','ゲ','ゴ','ザ','ジ','ズ','ゼ','ゾ','ダ','ヂ','ヅ','デ','ド','バ','ビ','ブ','ベ','ボ'].includes(displayedChar)) leniency = 0.3;
                     
                     let reactionTime = Math.max(0.1, (performance.now() - charStartTime) / 1000 - leniency);
                     let penalty = currentMistakes * 2.0; 
-                    updateCharStat(targetChar, reactionTime + penalty);
+                    updateCharStat(displayedChar, reactionTime + penalty);
                 }
 
                 fireLaser(matchCount);
@@ -659,11 +738,9 @@
                     updateFlickHint();
                 }
             } else if (baseMap[targetChar] && baseMap[targetChar].includes(lastChar)) {
-                // 這是有效的「前置組合字元」(例如：要打が，先打了か)
-                // 不算錯誤！保留在輸入框內等待使用者加上點點或圈圈
+                // 有效前置字元，不記錯誤
                 hiddenInput.value = lastChar;
             } else {
-                // 真正的錯誤點擊
                 currentMistakes++;
                 const errorSpan = document.getElementById(`char-${matchCount}`);
                 errorSpan.classList.remove('shake');
@@ -851,7 +928,7 @@
 
             hiddenInput.value = ''; matchCount = 0;
             stuckTime = 0; isRescued = false;
-            currentMistakes = 0; // 重置這道題目的錯誤次數
+            currentMistakes = 0; 
             hiddenInput.focus();
 
             applyRulesByScore();
@@ -859,14 +936,14 @@
             if (isSingleMode) {
                 let char = getWeightedChar();
                 lastAppearedChar = char; 
-                targetKana = char;
+                
+                // 將抽出的字元轉換回平假名，作為判定基準
+                targetKana = toHiragana(char);
                 
                 let displayChar = char;
-                if (singleSettings.type === 'kata') displayChar = toKatakana(char);
-                else if (singleSettings.type === 'mix') displayChar = Math.random() > 0.5 ? toKatakana(char) : char;
 
                 kanjiDisplay.textContent = "單擊特訓";
-                const hint = flickMap[char] || { romaji: '?' };
+                const hint = flickMap[targetKana] || { romaji: '?' };
                 kanaDisplay.innerHTML = `
                 <div class="char-col" id="col-0">
                     <div id="char-0" class="kana-char active">${displayChar}</div>
@@ -913,7 +990,7 @@
             timeLeft = currentDuration;
             updateTimerBar();
             
-            charStartTime = performance.now(); // 重置計時點
+            charStartTime = performance.now(); 
             lastTime = 0;
             cancelAnimationFrame(animationFrameId);
             animationFrameId = requestAnimationFrame(runTimer);
@@ -924,6 +1001,7 @@
             document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
             document.getElementById('final-score').textContent = `本次特訓擊破數：${score}`;
             answerOverlay.style.display = 'flex';
+            document.getElementById('btn-home').style.display = 'none'; // 結算隱藏返回按鈕
             hiddenInput.blur();
         }
 
