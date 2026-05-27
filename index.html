@@ -81,10 +81,7 @@
             z-index: 60; backdrop-filter: blur(5px);
         }
 
-        #key-main-char { 
-            font-size: 2.4rem; font-weight: bold; color: #fff; z-index: 2; 
-            transition: opacity 0.2s; 
-        }
+        #key-main-char { font-size: 2.4rem; font-weight: bold; color: #fff; z-index: 2; transition: opacity 0.2s;}
 
         .arrow {
             position: absolute; font-size: 1.2rem; font-weight: bold;
@@ -109,6 +106,13 @@
             text-shadow: 0 0 15px var(--level-color), 2px 2px 4px #000;
             transition: color 0.3s, text-shadow 0.3s;
         }
+        
+        /* 最高連擊顯示 */
+        #max-combo-display {
+            position: absolute; top: 55px; left: 20px;
+            font-size: 1rem; font-weight: bold; color: #FFD700;
+            text-shadow: 0 0 10px #FFD700, 1px 1px 2px #000; z-index: 50;
+        }
 
         #btn-home {
             position: absolute; top: 15px; left: 50%; transform: translateX(-50%);
@@ -119,21 +123,27 @@
         }
         #btn-home:active { background: rgba(255,255,255,0.3); }
 
-        #game-stats { position: absolute; top: 15px; right: 20px; text-align: right; z-index: 50; }
+        #game-stats { position: absolute; top: 15px; right: 20px; text-align: right; z-index: 50; display: flex; flex-direction: column; align-items: flex-end;}
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
         
-        /* Combo 顯示系統 */
+        /* Combo 與進度條顯示 */
         #combo-display {
             font-size: 1.3rem; color: #FFA500; font-weight: bold; margin-top: 5px;
             transition: transform 0.1s; text-shadow: 0 0 10px #FFA500; height: 1.5rem;
         }
         .combo-pop { transform: scale(1.3); color: #FFD700; }
         .combo-break { color: #888 !important; text-shadow: none !important; font-size: 1rem !important; }
+        
+        #combo-bar-container {
+            width: 100px; height: 4px; background: rgba(255, 255, 255, 0.2);
+            margin-top: 4px; border-radius: 2px; overflow: hidden; display: none;
+        }
+        #combo-bar { height: 100%; width: 100%; background: #FFD700; }
 
         #level-up-toast {
             position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 1.8rem; font-weight: bold; color: #FF00FF; text-shadow: 0 0 15px #FF00FF, 2px 2px 5px #000;
+            font-size: 1.5rem; font-weight: bold; color: #FF00FF; text-shadow: 0 0 15px #FF00FF, 2px 2px 5px #000;
             opacity: 0; pointer-events: none; z-index: 90; text-align: center; white-space: nowrap;
         }
 
@@ -150,7 +160,13 @@
             25% { transform: translateX(-10px); color: #ff4444; }
             75% { transform: translateX(10px); color: #ff4444; }
         }
+        @keyframes popScale {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.3); color: #FFF; }
+            100% { transform: scale(1); }
+        }
         .shake { animation: shake 0.2s ease-in-out 2; }
+        .pop { animation: popScale 0.3s ease-out; }
 
         #timer-bar-container { position: absolute; top: 0; left: 0; width: 100%; height: 6px; background-color: #222; z-index: 20;}
         #timer-bar { height: 100%; width: 100%; background-color: #00FF00; }
@@ -218,12 +234,15 @@
         <div id="timer-bar-container"><div id="timer-bar"></div></div>
         
         <div id="level-display">LV.1</div>
+        <div id="max-combo-display">MAX COMBO: 0</div>
+        
         <div id="btn-home" onclick="showPauseMenu()">🏠 返回主畫面</div>
 
         <div id="game-stats">
             <div id="score-display">擊破數: 0</div>
             <div id="speed-display">極限倒數: 20.0s</div>
             <div id="combo-display"></div>
+            <div id="combo-bar-container"><div id="combo-bar"></div></div>
         </div>
 
         <div id="level-up-toast"></div>
@@ -344,6 +363,7 @@
             'ゃ': { key: 'や', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', arrow: 'up', romaji: 'tsu' }
         };
 
+        // 中間態有效符號對照與忽略字元，防止多擊被判錯
         const baseMap = {
             'が':['か'], 'ぎ':['き'], 'ぐ':['く'], 'げ':['け'], 'ご':['こ'],
             'ざ':['さ'], 'じ':['し'], 'ず':['す'], 'ぜ':['せ'], 'ぞ':['そ'],
@@ -353,8 +373,11 @@
             'ぁ':['あ'], 'ぃ':['い'], 'ぅ':['う'], 'ぇ':['え'], 'ぉ':['お'],
             'ゃ':['や'], 'ゅ':['ゆ'], 'ょ':['よ'], 'っ':['つ']
         };
+        const combiningMarks = ['゛', '゜', 'ﾞ', 'ﾟ', '\u3099', '\u309A', '\u309B', '\u309C'];
 
+        const baseChars = Object.keys(flickMap).filter(k => k.length === 1 && k !== 'ー' && !['ゃ','ゅ','ょ','っ'].includes(k));
         let charStats = JSON.parse(localStorage.getItem('kanaFamiliarityStats')) || {};
+
         let wordPools = [[], [], [], []];
         let animationFrameId;
         let lastTime = 0;
@@ -380,8 +403,9 @@
         
         // Combo 系統
         let currentCombo = 0;
-        let comboThreshold = 3.0; // 初始給予3.0秒判定
+        let comboThreshold = 3.0; 
         let comboBrokenThisWord = false;
+        let maxComboRecord = parseInt(localStorage.getItem('kanaMaxCombo')) || 0;
 
         const hiddenInput = document.getElementById('hidden-input');
         const vpContainer = document.getElementById('visual-viewport-container');
@@ -394,6 +418,9 @@
         const answerOverlay = document.getElementById('answer-overlay');
         const resumeOverlay = document.getElementById('resume-overlay');
         const pauseOverlay = document.getElementById('pause-overlay');
+
+        // 初始化 Max Combo 顯示
+        document.getElementById('max-combo-display').textContent = `MAX COMBO: ${maxComboRecord}`;
 
         function resizeLayout() {
             if (window.visualViewport) {
@@ -447,7 +474,7 @@
             startOverlay.style.display = 'flex';
         }
 
-        // ====== 熟悉度評級與UI ======
+        // ====== 熟悉度評級與UI (+0.5秒視覺寬容) ======
         function getTier(avg) {
             if (avg <= 1.5) return 'S';
             if (avg <= 2.0) return 'A';
@@ -524,15 +551,14 @@
                 
                 let newTier = getTier(charStats[char].avg);
                 const tierRank = { 'S':1, 'A':2, 'B':3, 'C':4 };
-                // 熟悉度升級判定 (數字越小等級越高)
                 if (tierRank[newTier] < tierRank[oldTier]) {
-                    showLevelUpToast(`🌟 ${char} 升級至 ${newTier} 級！`);
+                    showLevelUpToast(`🌟 ${char} 熟悉度升級至 ${newTier} 級！`);
                 }
             }
             localStorage.setItem('kanaFamiliarityStats', JSON.stringify(charStats));
         }
 
-        // 優先測試從未出現的字，再來才是加權抽籤
+        // 處女地優先 + 加權演算法
         function getWeightedChar() {
             let candidates = [];
             const hiraList = Object.keys(flickMap).filter(k => k.length === 1 && k !== 'ー' && !['ゃ','ゅ','ょ','っ'].includes(k));
@@ -541,13 +567,11 @@
             else if (singleSettings.type === 'kata') candidates = hiraList.map(toKatakana);
             else candidates = hiraList.concat(hiraList.map(toKatakana));
 
-            // 1. 處女地優先演算法
             let untested = candidates.filter(c => !charStats[c] && c !== lastAppearedChar);
             if (untested.length > 0) {
                 return untested[Math.floor(Math.random() * untested.length)];
             }
 
-            // 2. 加權抽籤演算法
             let pool = [];
             candidates.forEach(c => {
                 if (c === lastAppearedChar) return; 
@@ -589,6 +613,17 @@
                 comboEl.textContent = `${currentCombo} COMBO!`;
                 comboEl.className = 'combo-pop';
                 setTimeout(() => comboEl.className = '', 150);
+                
+                // 更新最高紀錄
+                if (currentCombo > maxComboRecord) {
+                    maxComboRecord = currentCombo;
+                    localStorage.setItem('kanaMaxCombo', maxComboRecord);
+                    const maxEl = document.getElementById('max-combo-display');
+                    maxEl.textContent = `MAX COMBO: ${maxComboRecord}`;
+                    maxEl.classList.remove('pop');
+                    void maxEl.offsetWidth;
+                    maxEl.classList.add('pop');
+                }
             } else {
                 comboEl.textContent = comboBrokenThisWord ? 'COMBO BREAK' : '';
                 comboEl.className = 'combo-break';
@@ -709,7 +744,7 @@
             if (isSingleMode) showArrow = singleSettings.hint;
             else showArrow = isRescued || currentTier === 0;
 
-            // 母音中央字提示跟隨箭頭狀態徹底盲化
+            // 母音中央字提示也一併徹底盲化
             keyMainChar.style.opacity = showArrow ? '1' : '0';
 
             for (let dir in arrowElements) {
@@ -736,11 +771,15 @@
             
             let lastChar = inputVal[inputVal.length - 1];
             let targetChar = toHiragana(targetKana[matchCount]);
+            
+            let isIntermediate = false;
+            if (baseMap[targetChar] && baseMap[targetChar].includes(lastChar)) isIntermediate = true;
+            else if (combiningMarks.includes(lastChar)) isIntermediate = true;
 
             if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
                 let reactionTime = (performance.now() - charStartTime) / 1000;
                 
-                // 完全命中，計算熟悉度
+                // 單元模式計算熟悉度 (含實質多擊寬容度)
                 if (isSingleMode && matchCount === 0) {
                     let displayedChar = document.getElementById('char-0').textContent;
                     let leniency = 0;
@@ -755,7 +794,7 @@
                 // Combo 判定邏輯
                 if (!comboBrokenThisWord && reactionTime <= comboThreshold && currentMistakes === 0) {
                     currentCombo++;
-                    comboThreshold = Math.max(1.0, 3.0 - (currentCombo * 0.05)); // 逐漸縮圈
+                    comboThreshold = Math.max(1.0, 3.0 - (currentCombo * 0.05)); 
                 } else {
                     currentCombo = 0;
                     comboThreshold = 3.0;
@@ -788,11 +827,9 @@
                 } else {
                     updateFlickHint();
                 }
-            } else if (baseMap[targetChar] && baseMap[targetChar].includes(lastChar)) {
-                // 有效前置字元，不記錯誤
-                hiddenInput.value = lastChar;
+            } else if (isIntermediate) {
+                // 有效前置或系統連擊過渡字元，放行不懲罰
             } else {
-                // 錯誤判定
                 currentMistakes++;
                 currentCombo = 0;
                 comboThreshold = 3.0;
@@ -891,7 +928,7 @@
                 timeLeft -= deltaTime;
             }
             
-            // Combo 超時斷連判定 (就算在練習模式也會斷)
+            // Combo 超時斷連判定
             let elapsed = (performance.now() - charStartTime) / 1000;
             if (elapsed > comboThreshold && currentCombo > 0 && !comboBrokenThisWord) {
                 currentCombo = 0;
@@ -962,11 +999,26 @@
         }
 
         function updateTimerBar() {
+            // Combo 進度條繪製邏輯
+            const comboBarContainer = document.getElementById('combo-bar-container');
+            const comboBar = document.getElementById('combo-bar');
+            
+            if (currentCombo > 0 && !comboBrokenThisWord) {
+                let elapsed = (performance.now() - charStartTime) / 1000;
+                let comboTimeLeft = Math.max(0, comboThreshold - elapsed);
+                comboBarContainer.style.display = 'block';
+                comboBar.style.width = (comboTimeLeft / comboThreshold * 100) + '%';
+            } else {
+                comboBarContainer.style.display = 'none';
+            }
+
+            // 主時間條邏輯
+            const mainTimerContainer = document.getElementById('timer-bar-container');
             if (isPracticeMode || isSingleMode) {
-                document.getElementById('timer-bar-container').style.display = 'none';
+                mainTimerContainer.style.display = 'none';
                 return;
             }
-            document.getElementById('timer-bar-container').style.display = 'block';
+            mainTimerContainer.style.display = 'block';
             const p = Math.max(0, (timeLeft / currentDuration) * 100);
             document.getElementById('timer-bar').style.width = p + '%';
             document.getElementById('timer-bar').style.backgroundColor = p < 30 ? '#ff4444' : '#00FF00';
@@ -995,7 +1047,7 @@
             hiddenInput.value = ''; matchCount = 0;
             stuckTime = 0; isRescued = false;
             currentMistakes = 0; 
-            comboBrokenThisWord = false; // 重置這題的Combo斷連標記
+            comboBrokenThisWord = false; 
             hiddenInput.focus();
 
             applyRulesByScore();
@@ -1006,6 +1058,8 @@
                 targetKana = toHiragana(char);
                 
                 let displayChar = char;
+                if (singleSettings.type === 'kata') displayChar = toKatakana(char);
+                else if (singleSettings.type === 'mix') displayChar = Math.random() > 0.5 ? toKatakana(char) : char;
 
                 kanjiDisplay.textContent = "單擊特訓";
                 const hint = flickMap[targetKana] || { romaji: '?' };
