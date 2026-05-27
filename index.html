@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>iPhone 片假名盲打特訓</title>
+    <title>iPhone 假名神經重塑特訓</title>
     <style>
         :root {
             --tunnel-color: rgba(0, 255, 255, 0.2);
@@ -140,23 +140,24 @@
         .overlay {
             position: absolute; top: 0; left: 0; right: 0; bottom: 0;
             background: rgba(5,5,15,0.95); display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 100; padding: 30px; text-align: center;
+            justify-content: center; align-items: center; z-index: 100; padding: 20px; text-align: center;
         }
         
         #resume-overlay { display: none; background: rgba(0,0,0,0.8); backdrop-filter: blur(5px); }
 
         button {
-            padding: 15px 40px; font-size: 1.4rem; border: 2px solid #00FFFF; border-radius: 50px;
-            background: rgba(0,255,255,0.1); color: #00FFFF; font-weight: bold; cursor: pointer;
+            padding: 12px 25px; font-size: 1.2rem; border: 2px solid #00FFFF; border-radius: 50px;
+            background: rgba(0,255,255,0.1); color: #00FFFF; font-weight: bold; cursor: pointer; margin: 5px;
         }
         
-        /* 練習模式按鈕專屬樣式 */
-        .btn-practice {
-            border-color: #555; color: #ccc; background: rgba(255,255,255,0.05); font-size: 1.2rem; padding: 12px 30px;
+        .btn-practice { border-color: #555; color: #ccc; background: rgba(255,255,255,0.05); }
+        .menu-section {
+            background: rgba(0,0,0,0.6); border: 1px solid #333; border-radius: 15px;
+            padding: 15px; margin: 10px 0; width: 100%; max-width: 350px; text-align: left;
         }
-        .btn-container {
-            display: flex; flex-direction: column; gap: 15px; margin-top: 25px; align-items: center;
-        }
+        .menu-section h3 { margin: 0 0 10px 0; color: #FFD700; font-size: 1.1rem; text-align: center; }
+        .setting-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1rem; color: #ccc;}
+        .setting-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -197,15 +198,30 @@
     </div>
 
     <div id="start-overlay" class="overlay">
-        <h1 style="color:#00FFFF">大腦重塑：片假名盲打特訓</h1>
-        <p style="line-height:1.6; color:#ccc;">
-            全面切換至「片假名」顯示，強迫視覺聯想。<br>
-            提示會隨時間淡出，若大腦卡住 1.5 秒將觸發紅色救援。<br>
-            準備好你的神經反射！
-        </p>
-        <div class="btn-container">
-            <button onclick="startGame(false)">啟動實戰引擎 (競速)</button>
-            <button class="btn-practice" onclick="startGame(true)">進入無壓練習模式 (不限時)</button>
+        <h1 style="color:#00FFFF; margin-bottom: 10px;">大腦重塑特訓</h1>
+        
+        <div class="menu-section">
+            <h3>📖 單字元反射訓練 (智慧演算法)</h3>
+            <div class="setting-row">
+                <label><input type="checkbox" id="cfg-hint" checked> 九宮格提示</label>
+                <label><input type="checkbox" id="cfg-romaji" checked> 羅馬拼音</label>
+            </div>
+            <div class="setting-row" style="justify-content: center; gap: 15px; margin-top: 10px;">
+                <label><input type="radio" name="cfg-type" value="hira"> 平假名</label>
+                <label><input type="radio" name="cfg-type" value="kata"> 片假名</label>
+                <label><input type="radio" name="cfg-type" value="mix" checked> 隨機</label>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <button onclick="startGame(true, false)" style="width: 100%;">啟動單字元模式</button>
+            </div>
+        </div>
+
+        <div class="menu-section">
+            <h3>🔥 實戰單字訓練 (漸進難度)</h3>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 10px;">
+                <button onclick="startGame(false, false)" style="width: 100%;">啟動實戰引擎 (競速)</button>
+                <button class="btn-practice" onclick="startGame(false, true)" style="width: 100%;">無壓練習模式 (不限時)</button>
+            </div>
         </div>
     </div>
 
@@ -213,9 +229,9 @@
         <h1 style="color:#ff4444">防線被突破！</h1>
         <p id="answer-detail" style="font-size:1.5rem; margin-bottom: 10px;"></p>
         <p id="final-score" style="color:#FFD700; font-size:1.2rem;"></p>
-        <div class="btn-container">
-            <button onclick="startGame(false)">重新部署 (實戰)</button>
-            <button class="btn-practice" onclick="startGame(true)">降級至練習模式</button>
+        <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;">
+            <button onclick="resetCurrentGame()">重新部署</button>
+            <button class="btn-practice" onclick="location.reload()">返回主選單</button>
         </div>
     </div>
 
@@ -242,6 +258,12 @@
             'ゃ': { key: 'や', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', arrow: 'up', romaji: 'tsu' }
         };
 
+        // 提取所有基礎假名庫供單字元模式使用 (排除促音/長音符號等以避免單獨出現太奇怪)
+        const baseChars = Object.keys(flickMap).filter(k => k.length === 1 && k !== 'ー' && !['ゃ','ゅ','ょ','っ'].includes(k));
+
+        // 讀取/初始化玩家假名熟悉度資料
+        let charStats = JSON.parse(localStorage.getItem('kanaFamiliarityStats')) || {};
+
         let wordPools = [[], [], [], []];
         let animationFrameId;
         let lastTime = 0;
@@ -257,8 +279,14 @@
         let stuckTime = 0;
         let isRescued = false;
         
-        // 模式控制標數
+        // 模式狀態
+        let isSingleMode = false;
         let isPracticeMode = false;
+        let singleSettings = { hint: true, romaji: true, type: 'mix' };
+        
+        // 追蹤當前單字的起始時間，用於計算反應速度
+        let charStartTime = 0;
+        let lastAppearedChar = '';
 
         const hiddenInput = document.getElementById('hidden-input');
         const vpContainer = document.getElementById('visual-viewport-container');
@@ -271,11 +299,11 @@
         const answerOverlay = document.getElementById('answer-overlay');
         const resumeOverlay = document.getElementById('resume-overlay');
 
+        // ====== 輔助函式 ======
         function resizeLayout() {
             if (window.visualViewport) {
                 vpContainer.style.height = window.visualViewport.height + 'px';
                 vpContainer.style.top = window.visualViewport.offsetTop + 'px';
-                
                 if (window.visualViewport.height >= window.innerHeight * 0.85) {
                     if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none' && resumeOverlay.style.display !== 'flex') {
                         resumeOverlay.style.display = 'flex';
@@ -297,47 +325,68 @@
                 return String.fromCharCode(match.charCodeAt(0) + 0x60);
             });
         }
-
         function toHiragana(str) {
             return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
         }
 
-        function getWordDifficulty(word) {
-            let diff = word.reading.length; 
-            if (/[がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ]/.test(word.reading)) {
-                diff += 2;
+        // ====== 智慧演算法 (SRS) ======
+        function updateCharStat(char, reactionTimeSec) {
+            if (!charStats[char]) {
+                charStats[char] = { avg: reactionTimeSec, count: 1 };
+            } else {
+                // 使用指數移動平均 (EMA) 讓近期的表現佔更大比重
+                charStats[char].avg = charStats[char].avg * 0.7 + reactionTimeSec * 0.3;
+                charStats[char].count++;
             }
-            if (/[ゃゅょっー]/.test(word.reading)) {
-                diff += 3;
-            }
-            return diff;
+            localStorage.setItem('kanaFamiliarityStats', JSON.stringify(charStats));
         }
 
-        function initPools() {
-            wordPools = [[], [], [], []];
-            let shuffled = [...vocabularyBase].sort(() => Math.random() - 0.5);
-            shuffled.forEach(word => {
-                let diff = getWordDifficulty(word);
-                if (diff <= 3) wordPools[0].push(word);       
-                else if (diff <= 5) wordPools[1].push(word);  
-                else if (diff <= 7) wordPools[2].push(word);  
-                else wordPools[3].push(word);                 
+        function getWeightedChar() {
+            let pool = [];
+            baseChars.forEach(c => {
+                if (c === lastAppearedChar) return; // 防連續重複機制
+                
+                let weight = 1; // 預設權重
+                if (charStats[c]) {
+                    if (charStats[c].avg > 2.0) weight = 5;      // 嚴重卡關，大幅增加出現率
+                    else if (charStats[c].avg > 1.0) weight = 3; // 普通，適度出現
+                    else weight = 1;                             // 熟悉，極少出現
+                } else {
+                    weight = 3; // 從未測驗過的新字，給予中高權重
+                }
+                
+                for(let i = 0; i < weight; i++) pool.push(c);
             });
+            
+            return pool[Math.floor(Math.random() * pool.length)];
         }
 
-        // 修改入口函式，接收是否為練習模式
-        function startGame(practice) {
-            isPracticeMode = practice;
+        // ====== 遊戲流程控制 ======
+        function startGame(singleMode, practiceMode) {
+            isSingleMode = singleMode;
+            isPracticeMode = practiceMode;
+            
+            if (isSingleMode) {
+                singleSettings.hint = document.getElementById('cfg-hint').checked;
+                singleSettings.romaji = document.getElementById('cfg-romaji').checked;
+                singleSettings.type = document.querySelector('input[name="cfg-type"]:checked').value;
+            } else {
+                initPools(); // 只有實戰模式需要初始化單字庫
+            }
+
             startOverlay.style.display = 'none';
             answerOverlay.style.display = 'none';
             score = 0;
             currentTier = 0;
             
             updateStats();
-            initPools();
             updateLevelUI(0);
             hiddenInput.focus();
             nextWord();
+        }
+
+        function resetCurrentGame() {
+            startGame(isSingleMode, isPracticeMode);
         }
 
         function resumeGame() {
@@ -349,9 +398,9 @@
 
         function updateStats() {
             document.getElementById('score-display').textContent = `擊破數: ${score}`;
-            if (isPracticeMode) {
-                currentDuration = 20.0; // 練習模式恆定緩慢逼近
-                document.getElementById('speed-display').textContent = `無壓練習模式`;
+            if (isPracticeMode || isSingleMode) {
+                currentDuration = 20.0; 
+                document.getElementById('speed-display').textContent = isSingleMode ? `智慧訓練模式` : `無壓練習模式`;
             } else {
                 currentDuration = Math.max(5.0, 20.0 - (score * 0.5));
                 document.getElementById('speed-display').textContent = `極限倒數: ${currentDuration.toFixed(1)}s`;
@@ -361,11 +410,9 @@
         function showLevelUpToast(msg) {
             const toast = document.getElementById('level-up-toast');
             toast.textContent = msg;
-            
             if (typeof toast.getAnimations === 'function') {
                 toast.getAnimations().forEach(anim => anim.cancel());
             }
-
             toast.animate([
                 { transform: 'translate(-50%, -50%) scale(0.5)', opacity: 0 },
                 { transform: 'translate(-50%, -50%) scale(1.2)', opacity: 1, offset: 0.1 },
@@ -376,6 +423,14 @@
         }
 
         function updateLevelUI(tier) {
+            // 單字元模式固定顯示特訓徽章
+            if (isSingleMode) {
+                document.getElementById('level-display').textContent = `特訓`;
+                rootStyles.style.setProperty('--tunnel-color', 'rgba(150, 0, 255, 0.2)');
+                rootStyles.style.setProperty('--level-color', '#E066FF');
+                return;
+            }
+
             document.getElementById('level-display').textContent = `LV.${tier + 1}`;
             const colors = [
                 { tunnel: 'rgba(0, 255, 255, 0.2)', text: '#00FFFF' }, 
@@ -388,8 +443,9 @@
         }
 
         function applyRulesByScore() {
-            let newTier = Math.min(Math.floor(score / 5), 3);
+            if (isSingleMode) return; // 單字元模式不受分數難度影響
 
+            let newTier = Math.min(Math.floor(score / 5), 3);
             if (newTier === 1 && currentTier !== 1) {
                 currentTier = 1; showLevelUpToast("⚠️ 階段升級：移除初始拼音"); updateLevelUI(1);
             } 
@@ -422,7 +478,16 @@
             for (let dir in arrowElements) {
                 arrowElements[dir].el.textContent = arrowElements[dir].hollow;
                 arrowElements[dir].el.classList.remove('active-arrow');
-                arrowElements[dir].el.style.opacity = isRescued ? '1' : '0';
+                
+                // 決定是否顯示箭頭
+                let showArrow = false;
+                if (isSingleMode) {
+                    showArrow = singleSettings.hint;
+                } else {
+                    showArrow = isRescued || currentTier === 0;
+                }
+
+                arrowElements[dir].el.style.opacity = showArrow ? '1' : '0';
                 arrowElements[dir].el.style.color = '#444';
                 arrowElements[dir].el.style.textShadow = 'none';
             }
@@ -430,7 +495,7 @@
             if (hint.arrow && arrowElements[hint.arrow]) {
                 arrowElements[hint.arrow].el.textContent = arrowElements[hint.arrow].solid;
                 arrowElements[hint.arrow].el.classList.add('active-arrow');
-                if (isRescued) {
+                if (!isSingleMode && isRescued) {
                     arrowElements[hint.arrow].el.style.color = '#FF4444';
                     arrowElements[hint.arrow].el.style.textShadow = '0 0 15px #FF4444';
                 }
@@ -445,18 +510,29 @@
             let targetChar = toHiragana(targetKana[matchCount]);
 
             if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
+                // 如果是單字元模式，記錄反應時間
+                if (isSingleMode && matchCount === 0) {
+                    let reactionTime = (performance.now() - charStartTime) / 1000;
+                    updateCharStat(targetChar, reactionTime);
+                }
+
                 fireLaser(matchCount);
                 matchCount++;
                 
                 stuckTime = 0;
                 isRescued = false;
-                
                 hiddenInput.value = ''; 
                 
                 document.querySelectorAll('.kana-char').forEach((s, idx) => {
                     if (idx < matchCount) s.className = 'kana-char correct';
                     else if (idx === matchCount) s.className = 'kana-char active';
                     else s.className = 'kana-char';
+                });
+
+                document.querySelectorAll('.romaji-char').forEach((s, idx) => {
+                    if (idx < matchCount) s.className = 'romaji-char correct';
+                    else if (idx === matchCount) s.className = 'romaji-char active';
+                    else s.className = 'romaji-char';
                 });
 
                 if (matchCount === targetKana.length) {
@@ -476,6 +552,7 @@
             }
         });
 
+        // 動畫特效區
         function createParticles(x, y, color, count = 12) {
             for (let i = 0; i < count; i++) {
                 const p = document.createElement('div');
@@ -483,17 +560,14 @@
                 p.style.backgroundColor = color;
                 p.style.boxShadow = `0 0 8px ${color}`;
                 p.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
-                
                 const size = 3 + Math.random() * 5;
                 p.style.width = size + 'px'; p.style.height = size + 'px';
                 p.style.left = x + 'px'; p.style.top = y + 'px';
                 document.body.appendChild(p);
-
                 const angle = Math.random() * Math.PI * 2;
                 const velocity = 50 + Math.random() * 120; 
                 const tx = Math.cos(angle) * velocity;
                 const ty = Math.sin(angle) * velocity;
-
                 p.animate([
                     { transform: 'translate(-50%, -50%) rotate(0deg) scale(1)', opacity: 1 },
                     { transform: `translate(calc(-50% + ${tx}px), calc(-50% + ${ty}px)) rotate(${Math.random() * 360}deg) scale(0)`, opacity: 0 }
@@ -504,22 +578,18 @@
         function fireLaser(idx) {
             const bullet = document.createElement('div');
             bullet.className = 'bullet';
-            
             const startY = window.visualViewport ? window.visualViewport.height : window.innerHeight;
             const startX = window.visualViewport ? window.visualViewport.width / 2 : window.innerWidth / 2;
             document.body.appendChild(bullet);
-
             const targetEl = document.getElementById(`char-${idx}`);
             const rect = targetEl.getBoundingClientRect();
             const targetX = rect.left + rect.width / 2;
             const targetY = rect.top + rect.height / 2;
 
-            const animation = bullet.animate([
+            bullet.animate([
                 { transform: `translate(-50%, -50%) scaleY(1)`, top: `${startY}px`, left: `${startX}px` },
                 { transform: `translate(-50%, -50%) scaleY(1.5)`, top: `${targetY}px`, left: `${targetX}px` }
-            ], { duration: 60, easing: 'linear' });
-
-            animation.onfinish = () => {
+            ], { duration: 60, easing: 'linear' }).onfinish = () => {
                 bullet.remove();
                 createParticles(targetX, targetY, '#00FF00', 15); 
                 targetEl.animate([
@@ -531,33 +601,27 @@
 
         function clearAndExplode() {
             cancelAnimationFrame(animationFrameId);
-            
             const parts = document.querySelectorAll('#kanji-display, .kana-char, .romaji-char');
-            
             parts.forEach(part => {
                 const angle = Math.random() * Math.PI * 2;
                 const dist = 60 + Math.random() * 150;
                 const tx = Math.cos(angle) * dist;
                 const ty = Math.sin(angle) * dist;
                 const rot = (Math.random() - 0.5) * 120;
-
                 part.animate([
                     { transform: 'translate(0px, 0px) rotate(0deg) scale(1)', opacity: 1, filter: 'brightness(2)' },
                     { transform: `translate(${tx}px, ${ty}px) rotate(${rot}deg) scale(1.3)`, opacity: 0, filter: 'brightness(1)' }
                 ], { duration: 350, easing: 'cubic-bezier(0.1, 0.8, 0.3, 1)', fill: 'forwards' });
             });
-            
             const rect = wordContainer.getBoundingClientRect();
             const centerX = rect.left + rect.width / 2;
             const centerY = rect.top + rect.height / 2;
-            
             for(let i = 0; i < 40; i++) {
                 createParticles(
                     centerX + (Math.random() * 60 - 30), centerY + (Math.random() * 40 - 20), 
                     Math.random() > 0.5 ? '#00FFFF' : '#00FF00', 1
                 );
             }
-
             setTimeout(nextWord, 400);
         }
 
@@ -566,19 +630,20 @@
             let deltaTime = (currentTime - lastTime) / 1000;
             lastTime = currentTime;
 
-            // 練習模式中，若時間歸零則暫停倒數，文字維持最大尺寸不動
-            if (isPracticeMode && timeLeft <= 0) {
+            if ((isPracticeMode || isSingleMode) && timeLeft <= 0) {
                 timeLeft = 0;
             } else {
                 timeLeft -= deltaTime;
             }
             
-            stuckTime += deltaTime;
-            let rescueThreshold = currentTier === 2 ? 2.0 : 1.5;
-            
-            if (currentTier < 3 && stuckTime > rescueThreshold && !isRescued) {
-                isRescued = true;
-                updateFlickHint();
+            // 實戰模式下的延遲救援
+            if (!isSingleMode) {
+                stuckTime += deltaTime;
+                let rescueThreshold = currentTier === 2 ? 2.0 : 1.5;
+                if (currentTier < 3 && stuckTime > rescueThreshold && !isRescued) {
+                    isRescued = true;
+                    updateFlickHint();
+                }
             }
 
             let progress = 1 - (timeLeft / currentDuration);
@@ -589,8 +654,7 @@
             let currentScale = 0.1 + (calculatedTargetScale - 0.1) * easeProgress;
             
             let shakeX = 0, shakeY = 0;
-            // 練習模式拔除紅光與震動警告
-            if (progress > 0.75 && !isPracticeMode) { 
+            if (progress > 0.75 && !isPracticeMode && !isSingleMode) { 
                 let intensity = (progress - 0.75) * 4; 
                 shakeX = (Math.random() - 0.5) * 5 * intensity;
                 shakeY = (Math.random() - 0.5) * 5 * intensity;
@@ -602,41 +666,31 @@
             wordContainer.style.transform = `scale(${currentScale}) translate(${shakeX}px, ${shakeY}px)`;
             wordContainer.style.opacity = Math.min(1, easeProgress * 5); 
 
+            // 處理羅馬拼音顯示邏輯
             let baseRomajiOpacity = 0;
-            if (currentTier === 0) {
+            if (isSingleMode) {
+                baseRomajiOpacity = singleSettings.romaji ? 1 : 0;
+            } else if (currentTier === 0) {
                 baseRomajiOpacity = Math.max(0, 1 - (progress / 0.2));
             }
 
             document.querySelectorAll('.romaji-char').forEach((el, idx) => {
                 if (idx < matchCount) {
-                    el.style.opacity = 1;
-                    el.style.color = '#00FF00';
-                    el.style.textShadow = '0 0 10px #00FF00';
-                    el.style.transform = 'scale(1)';
+                    el.style.opacity = 1; el.style.color = '#00FF00'; el.style.textShadow = '0 0 10px #00FF00'; el.style.transform = 'scale(1)';
                 } else if (idx === matchCount) {
-                    if (isRescued) {
-                        el.style.opacity = 1;
-                        el.style.color = '#FF4444';
-                        el.style.textShadow = '0 0 15px #FF4444';
-                        el.style.transform = 'scale(1.2)';
+                    if (!isSingleMode && isRescued) {
+                        el.style.opacity = 1; el.style.color = '#FF4444'; el.style.textShadow = '0 0 15px #FF4444'; el.style.transform = 'scale(1.2)';
                     } else {
-                        el.style.opacity = baseRomajiOpacity;
-                        el.style.color = '#00FFFF';
-                        el.style.textShadow = '0 0 10px #00FFFF';
-                        el.style.transform = 'scale(1)';
+                        el.style.opacity = baseRomajiOpacity; el.style.color = '#00FFFF'; el.style.textShadow = '0 0 10px #00FFFF'; el.style.transform = 'scale(1)';
                     }
                 } else {
-                    el.style.opacity = baseRomajiOpacity;
-                    el.style.color = '#666';
-                    el.style.textShadow = 'none';
-                    el.style.transform = 'scale(1)';
+                    el.style.opacity = baseRomajiOpacity; el.style.color = '#666'; el.style.textShadow = 'none'; el.style.transform = 'scale(1)';
                 }
             });
 
             updateTimerBar();
 
-            // 只有在實戰模式下，時間歸零才會判定失敗
-            if (timeLeft <= 0 && !isPracticeMode) {
+            if (timeLeft <= 0 && !isPracticeMode && !isSingleMode) {
                 timeLeft = 0;
                 updateTimerBar();
                 showAnswer();
@@ -646,7 +700,7 @@
         }
 
         function updateTimerBar() {
-            if (isPracticeMode) {
+            if (isPracticeMode || isSingleMode) {
                 document.getElementById('timer-bar-container').style.display = 'none';
                 return;
             }
@@ -656,60 +710,75 @@
             document.getElementById('timer-bar').style.backgroundColor = p < 30 ? '#ff4444' : '#00FF00';
         }
 
+        function initPoolsForWordMode() {
+            if (isSingleMode) return;
+            // 實戰單字模式的字庫邏輯 (如果使用者想加回去的話)
+            let shuffled = [...vocabularyBase].sort(() => Math.random() - 0.5);
+            shuffled.forEach(word => {
+                let diff = getWordDifficulty(word);
+                if (diff <= 3) wordPools[0].push(word);       
+                else if (diff <= 5) wordPools[1].push(word);  
+                else if (diff <= 7) wordPools[2].push(word);  
+                else wordPools[3].push(word);                 
+            });
+        }
+
         function nextWord() {
             const kanjiDisplay = document.getElementById('kanji-display');
-            if (typeof kanjiDisplay.getAnimations === 'function') {
-                kanjiDisplay.getAnimations().forEach(anim => anim.cancel());
-            }
-            kanjiDisplay.style.transform = ''; 
-            kanjiDisplay.style.opacity = '';
+            if (typeof kanjiDisplay.getAnimations === 'function') kanjiDisplay.getAnimations().forEach(anim => anim.cancel());
+            kanjiDisplay.style.transform = ''; kanjiDisplay.style.opacity = '';
             
-            if (typeof wordContainer.getAnimations === 'function') {
-                wordContainer.getAnimations().forEach(anim => anim.cancel());
-            }
-            wordContainer.style.transform = 'scale(1) translate(0, 0)';
-            wordContainer.style.opacity = '0';
-            wordContainer.style.filter = 'none';
+            if (typeof wordContainer.getAnimations === 'function') wordContainer.getAnimations().forEach(anim => anim.cancel());
+            wordContainer.style.transform = 'scale(1) translate(0, 0)'; wordContainer.style.opacity = '0'; wordContainer.style.filter = 'none';
 
             hiddenInput.value = ''; matchCount = 0;
-            stuckTime = 0;
-            isRescued = false;
+            stuckTime = 0; isRescued = false;
             hiddenInput.focus();
 
             applyRulesByScore();
 
-            let targetPool = Math.min(Math.floor(score / 5), 3);
-            
-            while (targetPool >= 0 && wordPools[targetPool].length === 0) {
-                targetPool--;
-            }
-            
-            if (targetPool < 0) {
-                initPools();
-                targetPool = Math.min(Math.floor(score / 5), 3);
-            }
-            
-            const word = wordPools[targetPool].pop();
-            targetKana = word.reading;
+            // 決定出題內容
+            if (isSingleMode) {
+                let char = getWeightedChar();
+                lastAppearedChar = char; // 記錄防重複
+                targetKana = char;
+                
+                // 根據設定決定顯示字體
+                let displayChar = char;
+                if (singleSettings.type === 'kata') displayChar = toKatakana(char);
+                else if (singleSettings.type === 'mix') displayChar = Math.random() > 0.5 ? toKatakana(char) : char;
 
-            kanjiDisplay.textContent = word.kanji;
-            
-            kanaDisplay.innerHTML = targetKana.split('').map((c, i) => {
-                const hint = flickMap[toHiragana(c)] || { romaji: '?' };
-                const displayChar = toKatakana(c);
-                const displayRomaji = hint.romaji.toUpperCase();
-
-                return `
-                <div class="char-col" id="col-${i}">
-                    <div id="char-${i}" class="kana-char ${i===0?'active':''}">${displayChar}</div>
-                    <div id="romaji-${i}" class="romaji-char">${displayRomaji}</div>
+                kanjiDisplay.textContent = "單擊特訓";
+                const hint = flickMap[char] || { romaji: '?' };
+                kanaDisplay.innerHTML = `
+                <div class="char-col" id="col-0">
+                    <div id="char-0" class="kana-char active">${displayChar}</div>
+                    <div id="romaji-0" class="romaji-char">${hint.romaji.toUpperCase()}</div>
                 </div>`;
-            }).join('');
+            } else {
+                let targetPool = Math.min(Math.floor(score / 5), 3);
+                while (targetPool >= 0 && wordPools[targetPool].length === 0) targetPool--;
+                if (targetPool < 0) { initPoolsForWordMode(); targetPool = Math.min(Math.floor(score / 5), 3); }
+                
+                const word = wordPools[targetPool].pop();
+                targetKana = word.reading;
+                kanjiDisplay.textContent = word.kanji;
+                
+                kanaDisplay.innerHTML = targetKana.split('').map((c, i) => {
+                    const hint = flickMap[toHiragana(c)] || { romaji: '?' };
+                    const displayChar = toKatakana(c); // 實戰模式全片假名
+                    const displayRomaji = hint.romaji.toUpperCase();
+                    return `
+                    <div class="char-col" id="col-${i}">
+                        <div id="char-${i}" class="kana-char ${i===0?'active':''}">${displayChar}</div>
+                        <div id="romaji-${i}" class="romaji-char">${displayRomaji}</div>
+                    </div>`;
+                }).join('');
+            }
 
             updateFlickHint();
 
             void wordContainer.offsetWidth; 
-            
             let baseWidth = wordContainer.offsetWidth;
             let maxWidth = window.innerWidth * 0.95; 
             
@@ -727,6 +796,8 @@
             timeLeft = currentDuration;
             updateTimerBar();
             
+            // 記錄起始時間
+            charStartTime = performance.now();
             lastTime = 0;
             cancelAnimationFrame(animationFrameId);
             animationFrameId = requestAnimationFrame(runTimer);
