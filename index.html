@@ -148,9 +148,13 @@
         button {
             padding: 12px 25px; font-size: 1.2rem; border: 2px solid #00FFFF; border-radius: 50px;
             background: rgba(0,255,255,0.1); color: #00FFFF; font-weight: bold; cursor: pointer; margin: 5px;
+            transition: all 0.2s;
         }
+        button:active { background: rgba(0,255,255,0.3); transform: scale(0.95); }
         
         .btn-practice { border-color: #555; color: #ccc; background: rgba(255,255,255,0.05); }
+        .btn-stats { border-color: #FFD700; color: #FFD700; background: rgba(255,215,0,0.1); width: 100%; margin-top: 10px; }
+        
         .menu-section {
             background: rgba(0,0,0,0.6); border: 1px solid #333; border-radius: 15px;
             padding: 15px; margin: 10px 0; width: 100%; max-width: 350px; text-align: left;
@@ -158,6 +162,33 @@
         .menu-section h3 { margin: 0 0 10px 0; color: #FFD700; font-size: 1.1rem; text-align: center; }
         .setting-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1rem; color: #ccc;}
         .setting-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+
+        /* 熟悉度報表樣式 */
+        #stats-panel {
+            display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(10, 10, 20, 0.95); z-index: 200; overflow-y: auto;
+            flex-direction: column; align-items: center; padding: 20px 0;
+        }
+        .stats-grid {
+            display: grid; grid-template-columns: repeat(11, 1fr); gap: 4px;
+            margin-top: 20px; max-width: 100%; padding: 10px;
+        }
+        .kana-cell {
+            aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
+            border-radius: 8px; font-weight: bold; background: #222; color: #555; font-size: 1.2rem;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
+        }
+        /* 熟悉度顏色分級 */
+        .rank-S { background: rgba(0, 255, 0, 0.2); color: #00FF00; border: 1px solid #00FF00; box-shadow: 0 0 10px rgba(0,255,0,0.3); }
+        .rank-A { background: rgba(255, 255, 0, 0.2); color: #FFFF00; border: 1px solid #FFFF00; }
+        .rank-B { background: rgba(255, 165, 0, 0.2); color: #FFA500; border: 1px solid #FFA500; }
+        .rank-C { background: rgba(255, 0, 0, 0.3); color: #FF4444; border: 1px solid #FF4444; box-shadow: 0 0 10px rgba(255,0,0,0.5); }
+        
+        .stats-legend {
+            display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; font-size: 0.9rem; color: #ccc;
+        }
+        .legend-item { display: flex; align-items: center; gap: 5px; }
+        .color-box { width: 15px; height: 15px; border-radius: 3px; }
     </style>
 </head>
 <body>
@@ -197,6 +228,26 @@
         <button onclick="resumeGame()">重新連線</button>
     </div>
 
+    <div id="stats-panel">
+        <h1 style="color:#FFD700; margin: 10px 0;">50音神經反射圖鑑</h1>
+        <p style="color:#ccc; margin-bottom: 5px; text-align: center; font-size: 0.9rem;">
+            基於真實反應時間與錯誤懲罰計算<br>(每次打錯 +2 秒懲罰)
+        </p>
+        
+        <div class="stats-grid" id="stats-grid-container">
+            </div>
+
+        <div class="stats-legend">
+            <div class="legend-item"><div class="color-box rank-S"></div> S級 (&lt; 1.0s)</div>
+            <div class="legend-item"><div class="color-box rank-A"></div> A級 (1.0~1.5s)</div>
+            <div class="legend-item"><div class="color-box rank-B"></div> B級 (1.5~2.0s)</div>
+            <div class="legend-item"><div class="color-box rank-C"></div> C級 (&gt; 2.0s)</div>
+            <div class="legend-item"><div class="color-box" style="background:#222; border:1px solid #555;"></div> 未測驗</div>
+        </div>
+        
+        <button class="btn-practice" style="margin-top: 30px;" onclick="closeStats()">返回主機庫</button>
+    </div>
+
     <div id="start-overlay" class="overlay">
         <h1 style="color:#00FFFF; margin-bottom: 10px;">大腦重塑特訓</h1>
         
@@ -213,6 +264,7 @@
             </div>
             <div style="text-align: center; margin-top: 15px;">
                 <button onclick="startGame(true, false)" style="width: 100%;">啟動單字元模式</button>
+                <button class="btn-stats" onclick="openStats()">📊 學習成效 (熟悉度報表)</button>
             </div>
         </div>
 
@@ -258,10 +310,18 @@
             'ゃ': { key: 'や', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', arrow: 'up', romaji: 'tsu' }
         };
 
-        // 提取所有基礎假名庫供單字元模式使用 (排除促音/長音符號等以避免單獨出現太奇怪)
-        const baseChars = Object.keys(flickMap).filter(k => k.length === 1 && k !== 'ー' && !['ゃ','ゅ','ょ','っ'].includes(k));
+        // 有效的前置字元對照表，解決打濁音時中途被判定為錯誤的問題
+        const baseMap = {
+            'が':['か'], 'ぎ':['き'], 'ぐ':['く'], 'げ':['け'], 'ご':['こ'],
+            'ざ':['さ'], 'じ':['し'], 'ず':['す'], 'ぜ':['せ'], 'ぞ':['そ'],
+            'だ':['た'], 'ぢ':['ち'], 'づ':['つ'], 'で':['て'], 'ど':['と'],
+            'ば':['は'], 'び':['ひ'], 'ぶ':['ふ'], 'べ':['へ'], 'ぼ':['ほ'],
+            'ぱ':['は','ば'], 'ぴ':['ひ','び'], 'ぷ':['ふ','ぶ'], 'ぺ':['へ','べ'], 'ぽ':['ほ','ぼ'],
+            'ぁ':['あ'], 'ぃ':['い'], 'ぅ':['う'], 'ぇ':['え'], 'ぉ':['お'],
+            'ゃ':['や'], 'ゅ':['ゆ'], 'ょ':['よ'], 'っ':['つ']
+        };
 
-        // 讀取/初始化玩家假名熟悉度資料
+        const baseChars = Object.keys(flickMap).filter(k => k.length === 1 && k !== 'ー' && !['ゃ','ゅ','ょ','っ'].includes(k));
         let charStats = JSON.parse(localStorage.getItem('kanaFamiliarityStats')) || {};
 
         let wordPools = [[], [], [], []];
@@ -279,14 +339,13 @@
         let stuckTime = 0;
         let isRescued = false;
         
-        // 模式狀態
         let isSingleMode = false;
         let isPracticeMode = false;
         let singleSettings = { hint: true, romaji: true, type: 'mix' };
         
-        // 追蹤當前單字的起始時間，用於計算反應速度
         let charStartTime = 0;
         let lastAppearedChar = '';
+        let currentMistakes = 0; // 記錄當前單字的錯誤次數
 
         const hiddenInput = document.getElementById('hidden-input');
         const vpContainer = document.getElementById('visual-viewport-container');
@@ -299,7 +358,6 @@
         const answerOverlay = document.getElementById('answer-overlay');
         const resumeOverlay = document.getElementById('resume-overlay');
 
-        // ====== 輔助函式 ======
         function resizeLayout() {
             if (window.visualViewport) {
                 vpContainer.style.height = window.visualViewport.height + 'px';
@@ -329,12 +387,55 @@
             return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
         }
 
-        // ====== 智慧演算法 (SRS) ======
+        // ====== 儀表板與熟悉度演算法 ======
+        function openStats() {
+            document.getElementById('stats-panel').style.display = 'flex';
+            renderStatsGrid();
+        }
+
+        function closeStats() {
+            document.getElementById('stats-panel').style.display = 'none';
+        }
+
+        function renderStatsGrid() {
+            const container = document.getElementById('stats-grid-container');
+            container.innerHTML = '';
+            
+            // 經典五十音排序 (由右至左: あかさたなはまやらわん)
+            const gridLayout = [
+                ['あ','か','さ','た','な','は','ま','や','ら','わ','ん'],
+                ['い','き','し','ち','に','ひ','み','','り','',''],
+                ['う','く','す','つ','ぬ','ふ','む','ゆ','る','',''],
+                ['え','け','せ','て','ね','へ','め','','れ','',''],
+                ['お','こ','そ','と','の','ほ','も','よ','ろ','を','']
+            ];
+
+            gridLayout.forEach(row => {
+                row.forEach(char => {
+                    const cell = document.createElement('div');
+                    if (!char) {
+                        cell.style.visibility = 'hidden';
+                    } else {
+                        cell.className = 'kana-cell';
+                        cell.textContent = char;
+                        
+                        if (charStats[char]) {
+                            const avg = charStats[char].avg;
+                            if (avg <= 1.0) cell.classList.add('rank-S');
+                            else if (avg <= 1.5) cell.classList.add('rank-A');
+                            else if (avg <= 2.0) cell.classList.add('rank-B');
+                            else cell.classList.add('rank-C');
+                        }
+                    }
+                    container.appendChild(cell);
+                });
+            });
+        }
+
         function updateCharStat(char, reactionTimeSec) {
             if (!charStats[char]) {
                 charStats[char] = { avg: reactionTimeSec, count: 1 };
             } else {
-                // 使用指數移動平均 (EMA) 讓近期的表現佔更大比重
                 charStats[char].avg = charStats[char].avg * 0.7 + reactionTimeSec * 0.3;
                 charStats[char].count++;
             }
@@ -344,24 +445,41 @@
         function getWeightedChar() {
             let pool = [];
             baseChars.forEach(c => {
-                if (c === lastAppearedChar) return; // 防連續重複機制
+                if (c === lastAppearedChar) return; 
                 
-                let weight = 1; // 預設權重
+                let weight = 1; 
                 if (charStats[c]) {
-                    if (charStats[c].avg > 2.0) weight = 5;      // 嚴重卡關，大幅增加出現率
-                    else if (charStats[c].avg > 1.0) weight = 3; // 普通，適度出現
-                    else weight = 1;                             // 熟悉，極少出現
+                    if (charStats[c].avg > 2.0) weight = 6;      
+                    else if (charStats[c].avg > 1.5) weight = 4; 
+                    else if (charStats[c].avg > 1.0) weight = 2;
+                    else weight = 1;                             
                 } else {
-                    weight = 3; // 從未測驗過的新字，給予中高權重
+                    weight = 4; 
                 }
-                
                 for(let i = 0; i < weight; i++) pool.push(c);
             });
-            
             return pool[Math.floor(Math.random() * pool.length)];
         }
 
-        // ====== 遊戲流程控制 ======
+        function getWordDifficulty(word) {
+            let diff = word.reading.length; 
+            if (/[がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ]/.test(word.reading)) diff += 2;
+            if (/[ゃゅょっー]/.test(word.reading)) diff += 3;
+            return diff;
+        }
+
+        function initPools() {
+            wordPools = [[], [], [], []];
+            let shuffled = [...vocabularyBase].sort(() => Math.random() - 0.5);
+            shuffled.forEach(word => {
+                let diff = getWordDifficulty(word);
+                if (diff <= 3) wordPools[0].push(word);       
+                else if (diff <= 5) wordPools[1].push(word);  
+                else if (diff <= 7) wordPools[2].push(word);  
+                else wordPools[3].push(word);                 
+            });
+        }
+
         function startGame(singleMode, practiceMode) {
             isSingleMode = singleMode;
             isPracticeMode = practiceMode;
@@ -371,7 +489,7 @@
                 singleSettings.romaji = document.getElementById('cfg-romaji').checked;
                 singleSettings.type = document.querySelector('input[name="cfg-type"]:checked').value;
             } else {
-                initPools(); // 只有實戰模式需要初始化單字庫
+                initPools(); 
             }
 
             startOverlay.style.display = 'none';
@@ -410,9 +528,7 @@
         function showLevelUpToast(msg) {
             const toast = document.getElementById('level-up-toast');
             toast.textContent = msg;
-            if (typeof toast.getAnimations === 'function') {
-                toast.getAnimations().forEach(anim => anim.cancel());
-            }
+            if (typeof toast.getAnimations === 'function') toast.getAnimations().forEach(anim => anim.cancel());
             toast.animate([
                 { transform: 'translate(-50%, -50%) scale(0.5)', opacity: 0 },
                 { transform: 'translate(-50%, -50%) scale(1.2)', opacity: 1, offset: 0.1 },
@@ -423,14 +539,12 @@
         }
 
         function updateLevelUI(tier) {
-            // 單字元模式固定顯示特訓徽章
             if (isSingleMode) {
                 document.getElementById('level-display').textContent = `特訓`;
                 rootStyles.style.setProperty('--tunnel-color', 'rgba(150, 0, 255, 0.2)');
                 rootStyles.style.setProperty('--level-color', '#E066FF');
                 return;
             }
-
             document.getElementById('level-display').textContent = `LV.${tier + 1}`;
             const colors = [
                 { tunnel: 'rgba(0, 255, 255, 0.2)', text: '#00FFFF' }, 
@@ -443,7 +557,7 @@
         }
 
         function applyRulesByScore() {
-            if (isSingleMode) return; // 單字元模式不受分數難度影響
+            if (isSingleMode) return; 
 
             let newTier = Math.min(Math.floor(score / 5), 3);
             if (newTier === 1 && currentTier !== 1) {
@@ -479,13 +593,9 @@
                 arrowElements[dir].el.textContent = arrowElements[dir].hollow;
                 arrowElements[dir].el.classList.remove('active-arrow');
                 
-                // 決定是否顯示箭頭
                 let showArrow = false;
-                if (isSingleMode) {
-                    showArrow = singleSettings.hint;
-                } else {
-                    showArrow = isRescued || currentTier === 0;
-                }
+                if (isSingleMode) showArrow = singleSettings.hint;
+                else showArrow = isRescued || currentTier === 0;
 
                 arrowElements[dir].el.style.opacity = showArrow ? '1' : '0';
                 arrowElements[dir].el.style.color = '#444';
@@ -510,10 +620,16 @@
             let targetChar = toHiragana(targetKana[matchCount]);
 
             if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
-                // 如果是單字元模式，記錄反應時間
+                // 完全命中字元
                 if (isSingleMode && matchCount === 0) {
-                    let reactionTime = (performance.now() - charStartTime) / 1000;
-                    updateCharStat(targetChar, reactionTime);
+                    // 給予多擊字元物理時間寬容度 (濁音減0.3秒，半濁音減0.6秒)
+                    let leniency = 0;
+                    if (['ぱ','ぴ','ぷ','ぺ','ぽ'].includes(targetChar)) leniency = 0.6;
+                    else if (baseMap[targetChar]) leniency = 0.3;
+                    
+                    let reactionTime = Math.max(0.1, (performance.now() - charStartTime) / 1000 - leniency);
+                    let penalty = currentMistakes * 2.0; 
+                    updateCharStat(targetChar, reactionTime + penalty);
                 }
 
                 fireLaser(matchCount);
@@ -542,7 +658,13 @@
                 } else {
                     updateFlickHint();
                 }
+            } else if (baseMap[targetChar] && baseMap[targetChar].includes(lastChar)) {
+                // 這是有效的「前置組合字元」(例如：要打が，先打了か)
+                // 不算錯誤！保留在輸入框內等待使用者加上點點或圈圈
+                hiddenInput.value = lastChar;
             } else {
+                // 真正的錯誤點擊
+                currentMistakes++;
                 const errorSpan = document.getElementById(`char-${matchCount}`);
                 errorSpan.classList.remove('shake');
                 void errorSpan.offsetWidth;
@@ -552,7 +674,6 @@
             }
         });
 
-        // 動畫特效區
         function createParticles(x, y, color, count = 12) {
             for (let i = 0; i < count; i++) {
                 const p = document.createElement('div');
@@ -636,7 +757,6 @@
                 timeLeft -= deltaTime;
             }
             
-            // 實戰模式下的延遲救援
             if (!isSingleMode) {
                 stuckTime += deltaTime;
                 let rescueThreshold = currentTier === 2 ? 2.0 : 1.5;
@@ -666,7 +786,6 @@
             wordContainer.style.transform = `scale(${currentScale}) translate(${shakeX}px, ${shakeY}px)`;
             wordContainer.style.opacity = Math.min(1, easeProgress * 5); 
 
-            // 處理羅馬拼音顯示邏輯
             let baseRomajiOpacity = 0;
             if (isSingleMode) {
                 baseRomajiOpacity = singleSettings.romaji ? 1 : 0;
@@ -712,7 +831,6 @@
 
         function initPoolsForWordMode() {
             if (isSingleMode) return;
-            // 實戰單字模式的字庫邏輯 (如果使用者想加回去的話)
             let shuffled = [...vocabularyBase].sort(() => Math.random() - 0.5);
             shuffled.forEach(word => {
                 let diff = getWordDifficulty(word);
@@ -733,17 +851,16 @@
 
             hiddenInput.value = ''; matchCount = 0;
             stuckTime = 0; isRescued = false;
+            currentMistakes = 0; // 重置這道題目的錯誤次數
             hiddenInput.focus();
 
             applyRulesByScore();
 
-            // 決定出題內容
             if (isSingleMode) {
                 let char = getWeightedChar();
-                lastAppearedChar = char; // 記錄防重複
+                lastAppearedChar = char; 
                 targetKana = char;
                 
-                // 根據設定決定顯示字體
                 let displayChar = char;
                 if (singleSettings.type === 'kata') displayChar = toKatakana(char);
                 else if (singleSettings.type === 'mix') displayChar = Math.random() > 0.5 ? toKatakana(char) : char;
@@ -766,7 +883,7 @@
                 
                 kanaDisplay.innerHTML = targetKana.split('').map((c, i) => {
                     const hint = flickMap[toHiragana(c)] || { romaji: '?' };
-                    const displayChar = toKatakana(c); // 實戰模式全片假名
+                    const displayChar = toKatakana(c); 
                     const displayRomaji = hint.romaji.toUpperCase();
                     return `
                     <div class="char-col" id="col-${i}">
@@ -796,8 +913,7 @@
             timeLeft = currentDuration;
             updateTimerBar();
             
-            // 記錄起始時間
-            charStartTime = performance.now();
+            charStartTime = performance.now(); // 重置計時點
             lastTime = 0;
             cancelAnimationFrame(animationFrameId);
             animationFrameId = requestAnimationFrame(runTimer);
