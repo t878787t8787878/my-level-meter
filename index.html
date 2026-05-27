@@ -81,7 +81,10 @@
             z-index: 60; backdrop-filter: blur(5px);
         }
 
-        #key-main-char { font-size: 2.4rem; font-weight: bold; color: #fff; z-index: 2; }
+        #key-main-char { 
+            font-size: 2.4rem; font-weight: bold; color: #fff; z-index: 2; 
+            transition: opacity 0.2s; 
+        }
 
         .arrow {
             position: absolute; font-size: 1.2rem; font-weight: bold;
@@ -119,6 +122,14 @@
         #game-stats { position: absolute; top: 15px; right: 20px; text-align: right; z-index: 50; }
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
+        
+        /* Combo 顯示系統 */
+        #combo-display {
+            font-size: 1.3rem; color: #FFA500; font-weight: bold; margin-top: 5px;
+            transition: transform 0.1s; text-shadow: 0 0 10px #FFA500; height: 1.5rem;
+        }
+        .combo-pop { transform: scale(1.3); color: #FFD700; }
+        .combo-break { color: #888 !important; text-shadow: none !important; font-size: 1rem !important; }
 
         #level-up-toast {
             position: absolute; top: 25%; left: 50%; transform: translate(-50%, -50%);
@@ -173,7 +184,6 @@
         .setting-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 1rem; color: #ccc;}
         .setting-row label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
 
-        /* 熟悉度報表樣式 */
         #stats-panel {
             display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(10, 10, 20, 0.95); z-index: 200; overflow-y: auto;
@@ -183,23 +193,18 @@
         .stats-tabs button { padding: 8px 15px; font-size: 0.9rem; border-radius: 20px; border: 1px solid #00FFFF; background: transparent; color: #00FFFF; margin: 0; }
         .stats-tabs button.active { background: rgba(0,255,255,0.3); font-weight: bold; }
         
-        .stats-grid {
-            display: grid; gap: 4px; margin-top: 10px; max-width: 95%; padding: 10px; width: 100%;
-        }
+        .stats-grid { display: grid; gap: 4px; margin-top: 10px; max-width: 95%; padding: 10px; width: 100%; }
         .kana-cell {
             aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center;
             border-radius: 8px; font-weight: bold; background: #222; color: #555; font-size: 1.2rem;
             box-shadow: inset 0 0 10px rgba(0,0,0,0.5);
         }
-        /* 熟悉度顏色分級 */
         .rank-S { background: rgba(0, 255, 0, 0.2); color: #00FF00; border: 1px solid #00FF00; box-shadow: 0 0 10px rgba(0,255,0,0.3); }
         .rank-A { background: rgba(255, 255, 0, 0.2); color: #FFFF00; border: 1px solid #FFFF00; }
         .rank-B { background: rgba(255, 165, 0, 0.2); color: #FFA500; border: 1px solid #FFA500; }
         .rank-C { background: rgba(255, 0, 0, 0.3); color: #FF4444; border: 1px solid #FF4444; box-shadow: 0 0 10px rgba(255,0,0,0.5); }
         
-        .stats-legend {
-            display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; font-size: 0.9rem; color: #ccc;
-        }
+        .stats-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; font-size: 0.9rem; color: #ccc; }
         .legend-item { display: flex; align-items: center; gap: 5px; }
         .color-box { width: 15px; height: 15px; border-radius: 3px; }
     </style>
@@ -218,6 +223,7 @@
         <div id="game-stats">
             <div id="score-display">擊破數: 0</div>
             <div id="speed-display">極限倒數: 20.0s</div>
+            <div id="combo-display"></div>
         </div>
 
         <div id="level-up-toast"></div>
@@ -253,7 +259,7 @@
     <div id="stats-panel">
         <h1 style="color:#FFD700; margin: 10px 0; font-size: 1.5rem;">50音神經反射圖鑑</h1>
         <p style="color:#ccc; margin-bottom: 15px; text-align: center; font-size: 0.85rem;">
-            基於真實反應時間與錯誤懲罰計算<br>(錯一次加 2 秒)
+            含視覺延遲寬容(+0.5s)，打錯一次 +2 秒懲罰
         </p>
         
         <div class="stats-tabs">
@@ -263,14 +269,13 @@
             <button id="tab-kata-daku" onclick="renderStatsGrid('kata-daku')">片(濁音)</button>
         </div>
 
-        <div class="stats-grid" id="stats-grid-container">
-            </div>
+        <div class="stats-grid" id="stats-grid-container"></div>
 
         <div class="stats-legend">
-            <div class="legend-item"><div class="color-box rank-S"></div> S級 (&lt; 1.0s)</div>
-            <div class="legend-item"><div class="color-box rank-A"></div> A級 (1.0~1.5s)</div>
-            <div class="legend-item"><div class="color-box rank-B"></div> B級 (1.5~2.0s)</div>
-            <div class="legend-item"><div class="color-box rank-C"></div> C級 (&gt; 2.0s)</div>
+            <div class="legend-item"><div class="color-box rank-S"></div> S級 (&lt; 1.5s)</div>
+            <div class="legend-item"><div class="color-box rank-A"></div> A級 (1.5~2.0s)</div>
+            <div class="legend-item"><div class="color-box rank-B"></div> B級 (2.0~2.5s)</div>
+            <div class="legend-item"><div class="color-box rank-C"></div> C級 (&gt; 2.5s)</div>
             <div class="legend-item"><div class="color-box" style="background:#222; border:1px solid #555;"></div> 未測驗</div>
         </div>
         
@@ -372,6 +377,11 @@
         let charStartTime = 0;
         let lastAppearedChar = '';
         let currentMistakes = 0; 
+        
+        // Combo 系統
+        let currentCombo = 0;
+        let comboThreshold = 3.0; // 初始給予3.0秒判定
+        let comboBrokenThisWord = false;
 
         const hiddenInput = document.getElementById('hidden-input');
         const vpContainer = document.getElementById('visual-viewport-container');
@@ -414,7 +424,7 @@
             return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
         }
 
-        // ====== 暫停與選單控制 ======
+        // ====== 暫停與選單 ======
         function showPauseMenu() {
             cancelAnimationFrame(animationFrameId);
             pauseOverlay.style.display = 'flex';
@@ -437,10 +447,17 @@
             startOverlay.style.display = 'flex';
         }
 
-        // ====== 儀表板與熟悉度演算法 ======
+        // ====== 熟悉度評級與UI ======
+        function getTier(avg) {
+            if (avg <= 1.5) return 'S';
+            if (avg <= 2.0) return 'A';
+            if (avg <= 2.5) return 'B';
+            return 'C';
+        }
+
         function openStats() {
             document.getElementById('stats-panel').style.display = 'flex';
-            renderStatsGrid('hira'); // 預設顯示平假名
+            renderStatsGrid('hira'); 
         }
 
         function closeStats() {
@@ -448,7 +465,6 @@
         }
 
         function renderStatsGrid(type) {
-            // 切換 active 樣式
             document.querySelectorAll('.stats-tabs button').forEach(btn => btn.classList.remove('active'));
             document.getElementById('tab-' + type).classList.add('active');
 
@@ -489,11 +505,8 @@
                         cell.textContent = displayChar;
                         
                         if (charStats[displayChar]) {
-                            const avg = charStats[displayChar].avg;
-                            if (avg <= 1.0) cell.classList.add('rank-S');
-                            else if (avg <= 1.5) cell.classList.add('rank-A');
-                            else if (avg <= 2.0) cell.classList.add('rank-B');
-                            else cell.classList.add('rank-C');
+                            const tier = getTier(charStats[displayChar].avg);
+                            cell.classList.add(`rank-${tier}`);
                         }
                     }
                     container.appendChild(cell);
@@ -505,14 +518,22 @@
             if (!charStats[char]) {
                 charStats[char] = { avg: reactionTimeSec, count: 1 };
             } else {
+                let oldTier = getTier(charStats[char].avg);
                 charStats[char].avg = charStats[char].avg * 0.7 + reactionTimeSec * 0.3;
                 charStats[char].count++;
+                
+                let newTier = getTier(charStats[char].avg);
+                const tierRank = { 'S':1, 'A':2, 'B':3, 'C':4 };
+                // 熟悉度升級判定 (數字越小等級越高)
+                if (tierRank[newTier] < tierRank[oldTier]) {
+                    showLevelUpToast(`🌟 ${char} 升級至 ${newTier} 級！`);
+                }
             }
             localStorage.setItem('kanaFamiliarityStats', JSON.stringify(charStats));
         }
 
+        // 優先測試從未出現的字，再來才是加權抽籤
         function getWeightedChar() {
-            let pool = [];
             let candidates = [];
             const hiraList = Object.keys(flickMap).filter(k => k.length === 1 && k !== 'ー' && !['ゃ','ゅ','ょ','っ'].includes(k));
             
@@ -520,16 +541,22 @@
             else if (singleSettings.type === 'kata') candidates = hiraList.map(toKatakana);
             else candidates = hiraList.concat(hiraList.map(toKatakana));
 
+            // 1. 處女地優先演算法
+            let untested = candidates.filter(c => !charStats[c] && c !== lastAppearedChar);
+            if (untested.length > 0) {
+                return untested[Math.floor(Math.random() * untested.length)];
+            }
+
+            // 2. 加權抽籤演算法
+            let pool = [];
             candidates.forEach(c => {
                 if (c === lastAppearedChar) return; 
                 let weight = 1; 
                 if (charStats[c]) {
-                    if (charStats[c].avg > 2.0) weight = 6;      
-                    else if (charStats[c].avg > 1.5) weight = 4; 
-                    else if (charStats[c].avg > 1.0) weight = 2;
+                    if (charStats[c].avg > 2.5) weight = 6;      
+                    else if (charStats[c].avg > 2.0) weight = 4; 
+                    else if (charStats[c].avg > 1.5) weight = 2;
                     else weight = 1;                             
-                } else {
-                    weight = 4; 
                 }
                 for(let i = 0; i < weight; i++) pool.push(c);
             });
@@ -555,6 +582,21 @@
             });
         }
 
+        // ====== Combo UI ======
+        function updateComboUI() {
+            const comboEl = document.getElementById('combo-display');
+            if (currentCombo > 0) {
+                comboEl.textContent = `${currentCombo} COMBO!`;
+                comboEl.className = 'combo-pop';
+                setTimeout(() => comboEl.className = '', 150);
+            } else {
+                comboEl.textContent = comboBrokenThisWord ? 'COMBO BREAK' : '';
+                comboEl.className = 'combo-break';
+                if (comboBrokenThisWord) setTimeout(() => { if(currentCombo === 0) comboEl.textContent = ''; }, 1000);
+            }
+        }
+
+        // ====== 遊戲主迴圈 ======
         function startGame(singleMode, practiceMode) {
             isSingleMode = singleMode;
             isPracticeMode = practiceMode;
@@ -570,10 +612,13 @@
             startOverlay.style.display = 'none';
             answerOverlay.style.display = 'none';
             pauseOverlay.style.display = 'none';
-            document.getElementById('btn-home').style.display = 'block'; // 顯示返回按鈕
+            document.getElementById('btn-home').style.display = 'block'; 
             
             score = 0;
             currentTier = 0;
+            currentCombo = 0;
+            comboThreshold = 3.0;
+            updateComboUI();
             
             updateStats();
             updateLevelUI(0);
@@ -583,13 +628,6 @@
 
         function resetCurrentGame() {
             startGame(isSingleMode, isPracticeMode);
-        }
-
-        function resumeGame() {
-            resumeOverlay.style.display = 'none';
-            hiddenInput.focus();
-            lastTime = 0;
-            animationFrameId = requestAnimationFrame(runTimer);
         }
 
         function updateStats() {
@@ -667,14 +705,16 @@
                 'right': { el: document.querySelector('.arrow-right'), hollow: '▷', solid: '▶\uFE0E' }
             };
 
+            let showArrow = false;
+            if (isSingleMode) showArrow = singleSettings.hint;
+            else showArrow = isRescued || currentTier === 0;
+
+            // 母音中央字提示跟隨箭頭狀態徹底盲化
+            keyMainChar.style.opacity = showArrow ? '1' : '0';
+
             for (let dir in arrowElements) {
                 arrowElements[dir].el.textContent = arrowElements[dir].hollow;
                 arrowElements[dir].el.classList.remove('active-arrow');
-                
-                let showArrow = false;
-                if (isSingleMode) showArrow = singleSettings.hint;
-                else showArrow = isRescued || currentTier === 0;
-
                 arrowElements[dir].el.style.opacity = showArrow ? '1' : '0';
                 arrowElements[dir].el.style.color = '#444';
                 arrowElements[dir].el.style.textShadow = 'none';
@@ -698,18 +738,29 @@
             let targetChar = toHiragana(targetKana[matchCount]);
 
             if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
+                let reactionTime = (performance.now() - charStartTime) / 1000;
+                
                 // 完全命中，計算熟悉度
                 if (isSingleMode && matchCount === 0) {
                     let displayedChar = document.getElementById('char-0').textContent;
-                    
                     let leniency = 0;
                     if (['ぱ','ぴ','ぷ','ぺ','ぽ','パ','ピ','プ','ペ','ポ'].includes(displayedChar)) leniency = 0.6;
                     else if (['が','ぎ','ぐ','げ','ご','ざ','じ','ず','ぜ','ぞ','だ','ぢ','づ','で','ど','ば','び','ぶ','べ','ぼ','ガ','ギ','グ','ゲ','ゴ','ザ','ジ','ズ','ゼ','ゾ','ダ','ヂ','ヅ','デ','ド','バ','ビ','ブ','ベ','ボ'].includes(displayedChar)) leniency = 0.3;
                     
-                    let reactionTime = Math.max(0.1, (performance.now() - charStartTime) / 1000 - leniency);
+                    let adjustedRT = Math.max(0.1, reactionTime - leniency);
                     let penalty = currentMistakes * 2.0; 
-                    updateCharStat(displayedChar, reactionTime + penalty);
+                    updateCharStat(displayedChar, adjustedRT + penalty);
                 }
+                
+                // Combo 判定邏輯
+                if (!comboBrokenThisWord && reactionTime <= comboThreshold && currentMistakes === 0) {
+                    currentCombo++;
+                    comboThreshold = Math.max(1.0, 3.0 - (currentCombo * 0.05)); // 逐漸縮圈
+                } else {
+                    currentCombo = 0;
+                    comboThreshold = 3.0;
+                }
+                updateComboUI();
 
                 fireLaser(matchCount);
                 matchCount++;
@@ -741,7 +792,13 @@
                 // 有效前置字元，不記錯誤
                 hiddenInput.value = lastChar;
             } else {
+                // 錯誤判定
                 currentMistakes++;
+                currentCombo = 0;
+                comboThreshold = 3.0;
+                comboBrokenThisWord = true;
+                updateComboUI();
+                
                 const errorSpan = document.getElementById(`char-${matchCount}`);
                 errorSpan.classList.remove('shake');
                 void errorSpan.offsetWidth;
@@ -834,6 +891,15 @@
                 timeLeft -= deltaTime;
             }
             
+            // Combo 超時斷連判定 (就算在練習模式也會斷)
+            let elapsed = (performance.now() - charStartTime) / 1000;
+            if (elapsed > comboThreshold && currentCombo > 0 && !comboBrokenThisWord) {
+                currentCombo = 0;
+                comboThreshold = 3.0;
+                comboBrokenThisWord = true;
+                updateComboUI();
+            }
+
             if (!isSingleMode) {
                 stuckTime += deltaTime;
                 let rescueThreshold = currentTier === 2 ? 2.0 : 1.5;
@@ -929,6 +995,7 @@
             hiddenInput.value = ''; matchCount = 0;
             stuckTime = 0; isRescued = false;
             currentMistakes = 0; 
+            comboBrokenThisWord = false; // 重置這題的Combo斷連標記
             hiddenInput.focus();
 
             applyRulesByScore();
@@ -936,8 +1003,6 @@
             if (isSingleMode) {
                 let char = getWeightedChar();
                 lastAppearedChar = char; 
-                
-                // 將抽出的字元轉換回平假名，作為判定基準
                 targetKana = toHiragana(char);
                 
                 let displayChar = char;
@@ -1001,7 +1066,7 @@
             document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
             document.getElementById('final-score').textContent = `本次特訓擊破數：${score}`;
             answerOverlay.style.display = 'flex';
-            document.getElementById('btn-home').style.display = 'none'; // 結算隱藏返回按鈕
+            document.getElementById('btn-home').style.display = 'none'; 
             hiddenInput.blur();
         }
 
