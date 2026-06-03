@@ -107,7 +107,6 @@
             transition: color 0.3s, text-shadow 0.3s;
         }
         
-        /* 最高連擊顯示 */
         #max-combo-display {
             position: absolute; top: 55px; left: 20px;
             font-size: 1rem; font-weight: bold; color: #FFD700;
@@ -127,7 +126,6 @@
         #score-display { font-size: 1.5rem; color: #FFD700; font-weight: bold; }
         #speed-display { font-size: 1rem; color: #00FFFF; margin-top: 5px;}
         
-        /* Combo 與進度條顯示 */
         #combo-display {
             font-size: 1.3rem; color: #FFA500; font-weight: bold; margin-top: 5px;
             transition: transform 0.1s; text-shadow: 0 0 10px #FFA500; height: 1.5rem;
@@ -363,15 +361,15 @@
             'ゃ': { key: 'や', arrow: '', romaji: 'ya' }, 'ゅ': { key: 'や', arrow: 'up', romaji: 'yu' }, 'ょ': { key: 'や', arrow: 'down', romaji: 'yo' }, 'っ': { key: 'た', arrow: 'up', romaji: 'tsu' }
         };
 
-        // 中間態有效符號對照與忽略字元，防止多擊被判錯
+        // 新增了對 'づ' 的完美支援
         const baseMap = {
             'が':['か'], 'ぎ':['き'], 'ぐ':['く'], 'げ':['け'], 'ご':['こ'],
             'ざ':['さ'], 'じ':['し'], 'ず':['す'], 'ぜ':['せ'], 'ぞ':['そ'],
-            'だ':['た'], 'ぢ':['ち'], 'づ':['つ'], 'で':['て'], 'ど':['と'],
+            'だ':['た'], 'ぢ':['ち'], 'づ':['つ', 'っ'], 'で':['て'], 'ど':['と'],
             'ば':['は'], 'び':['ひ'], 'ぶ':['ふ'], 'べ':['へ'], 'ぼ':['ほ'],
             'ぱ':['は','ば'], 'ぴ':['ひ','び'], 'ぷ':['ふ','ぶ'], 'ぺ':['へ','べ'], 'ぽ':['ほ','ぼ'],
             'ぁ':['あ'], 'ぃ':['い'], 'ぅ':['う'], 'ぇ':['え'], 'ぉ':['お'],
-            'ゃ':['や'], 'ゅ':['ゆ'], 'ょ':['よ'], 'っ':['つ']
+            'ゃ':['や'], 'ゅ':['ゆ'], 'ょ':['よ'], 'ゔ':['う','ぅ']
         };
         const combiningMarks = ['゛', '゜', 'ﾞ', 'ﾟ', '\u3099', '\u309A', '\u309B', '\u309C'];
 
@@ -401,7 +399,6 @@
         let lastAppearedChar = '';
         let currentMistakes = 0; 
         
-        // Combo 系統
         let currentCombo = 0;
         let comboThreshold = 3.0; 
         let comboBrokenThisWord = false;
@@ -419,7 +416,6 @@
         const resumeOverlay = document.getElementById('resume-overlay');
         const pauseOverlay = document.getElementById('pause-overlay');
 
-        // 初始化 Max Combo 顯示
         document.getElementById('max-combo-display').textContent = `MAX COMBO: ${maxComboRecord}`;
 
         function resizeLayout() {
@@ -451,7 +447,6 @@
             return str.replace(/[\u30a1-\u30f6]/g, m => String.fromCharCode(m.charCodeAt(0) - 0x60));
         }
 
-        // ====== 暫停與選單 ======
         function showPauseMenu() {
             cancelAnimationFrame(animationFrameId);
             pauseOverlay.style.display = 'flex';
@@ -474,7 +469,6 @@
             startOverlay.style.display = 'flex';
         }
 
-        // ====== 熟悉度評級與UI (+0.5秒視覺寬容) ======
         function getTier(avg) {
             if (avg <= 1.5) return 'S';
             if (avg <= 2.0) return 'A';
@@ -544,6 +538,8 @@
         function updateCharStat(char, reactionTimeSec) {
             if (!charStats[char]) {
                 charStats[char] = { avg: reactionTimeSec, count: 1 };
+                let newTier = getTier(reactionTimeSec);
+                showLevelUpToast(`🌟 ${char} 達成 ${newTier} 級熟悉度！`);
             } else {
                 let oldTier = getTier(charStats[char].avg);
                 charStats[char].avg = charStats[char].avg * 0.7 + reactionTimeSec * 0.3;
@@ -552,13 +548,12 @@
                 let newTier = getTier(charStats[char].avg);
                 const tierRank = { 'S':1, 'A':2, 'B':3, 'C':4 };
                 if (tierRank[newTier] < tierRank[oldTier]) {
-                    showLevelUpToast(`🌟 ${char} 熟悉度升級至 ${newTier} 級！`);
+                    showLevelUpToast(`🌟 ${char} 升級至 ${newTier} 級！`);
                 }
             }
             localStorage.setItem('kanaFamiliarityStats', JSON.stringify(charStats));
         }
 
-        // 處女地優先 + 加權演算法
         function getWeightedChar() {
             let candidates = [];
             const hiraList = Object.keys(flickMap).filter(k => k.length === 1 && k !== 'ー' && !['ゃ','ゅ','ょ','っ'].includes(k));
@@ -606,7 +601,6 @@
             });
         }
 
-        // ====== Combo UI ======
         function updateComboUI() {
             const comboEl = document.getElementById('combo-display');
             if (currentCombo > 0) {
@@ -614,7 +608,6 @@
                 comboEl.className = 'combo-pop';
                 setTimeout(() => comboEl.className = '', 150);
                 
-                // 更新最高紀錄
                 if (currentCombo > maxComboRecord) {
                     maxComboRecord = currentCombo;
                     localStorage.setItem('kanaMaxCombo', maxComboRecord);
@@ -631,7 +624,6 @@
             }
         }
 
-        // ====== 遊戲主迴圈 ======
         function startGame(singleMode, practiceMode) {
             isSingleMode = singleMode;
             isPracticeMode = practiceMode;
@@ -744,7 +736,6 @@
             if (isSingleMode) showArrow = singleSettings.hint;
             else showArrow = isRescued || currentTier === 0;
 
-            // 母音中央字提示也一併徹底盲化
             keyMainChar.style.opacity = showArrow ? '1' : '0';
 
             for (let dir in arrowElements) {
@@ -776,22 +767,20 @@
             if (baseMap[targetChar] && baseMap[targetChar].includes(lastChar)) isIntermediate = true;
             else if (combiningMarks.includes(lastChar)) isIntermediate = true;
 
-            if (lastChar === targetChar || (targetChar === 'っ' && lastChar !== 'っ')) {
+            if (lastChar === targetChar) {
                 let reactionTime = (performance.now() - charStartTime) / 1000;
                 
-                // 單元模式計算熟悉度 (含實質多擊寬容度)
                 if (isSingleMode && matchCount === 0) {
                     let displayedChar = document.getElementById('char-0').textContent;
                     let leniency = 0;
-                    if (['ぱ','ぴ','ぷ','ぺ','ぽ','パ','ピ','プ','ペ','ポ'].includes(displayedChar)) leniency = 0.6;
-                    else if (['が','ぎ','ぐ','げ','ご','ざ','じ','ず','ぜ','ぞ','だ','ぢ','づ','で','ど','ば','び','ぶ','べ','ぼ','ガ','ギ','グ','ゲ','ゴ','ザ','ジ','ズ','ゼ','ゾ','ダ','ヂ','ヅ','デ','ド','バ','ビ','ブ','ベ','ボ'].includes(displayedChar)) leniency = 0.3;
+                    if (['ぱ','ぴ','ぷ','ぺ','ぽ','パ','ピ','プ','ペ','ポ','づ','ヅ'].includes(displayedChar)) leniency = 0.6;
+                    else if (['が','ぎ','ぐ','げ','ご','ざ','じ','ず','ぜ','ぞ','だ','ぢ','で','ど','ば','び','ぶ','べ','ぼ','ガ','ギ','グ','ゲ','ゴ','ザ','ジ','ズ','ゼ','ゾ','ダ','ヂ','デ','ド','バ','ビ','ブ','ベ','ボ'].includes(displayedChar)) leniency = 0.3;
                     
                     let adjustedRT = Math.max(0.1, reactionTime - leniency);
                     let penalty = currentMistakes * 2.0; 
                     updateCharStat(displayedChar, adjustedRT + penalty);
                 }
                 
-                // Combo 判定邏輯
                 if (!comboBrokenThisWord && reactionTime <= comboThreshold && currentMistakes === 0) {
                     currentCombo++;
                     comboThreshold = Math.max(1.0, 3.0 - (currentCombo * 0.05)); 
@@ -828,7 +817,7 @@
                     updateFlickHint();
                 }
             } else if (isIntermediate) {
-                // 有效前置或系統連擊過渡字元，放行不懲罰
+                hiddenInput.value = lastChar;
             } else {
                 currentMistakes++;
                 currentCombo = 0;
@@ -928,7 +917,6 @@
                 timeLeft -= deltaTime;
             }
             
-            // Combo 超時斷連判定
             let elapsed = (performance.now() - charStartTime) / 1000;
             if (elapsed > comboThreshold && currentCombo > 0 && !comboBrokenThisWord) {
                 currentCombo = 0;
@@ -999,7 +987,6 @@
         }
 
         function updateTimerBar() {
-            // Combo 進度條繪製邏輯
             const comboBarContainer = document.getElementById('combo-bar-container');
             const comboBar = document.getElementById('combo-bar');
             
@@ -1012,7 +999,6 @@
                 comboBarContainer.style.display = 'none';
             }
 
-            // 主時間條邏輯
             const mainTimerContainer = document.getElementById('timer-bar-container');
             if (isPracticeMode || isSingleMode) {
                 mainTimerContainer.style.display = 'none';
