@@ -222,13 +222,17 @@
         .legend-item { display: flex; align-items: center; gap: 5px; }
         .color-box { width: 15px; height: 15px; border-radius: 3px; }
     
-        #voice-controls { position:absolute; bottom: max(8px, env(safe-area-inset-bottom)); left:8px; right:8px; z-index:95; text-align:center; background:#050510ed; border-radius:12px; padding:6px; }
+        #voice-controls { position:absolute; bottom: max(8px, env(safe-area-inset-bottom)); left:auto; right:8px; width:min(170px, calc(100% - 145px)); box-sizing:border-box; z-index:95; text-align:center; background:#050510ed; border-radius:12px; padding:6px; }
         #voice-controls button { font-size:14px; padding:8px; min-height:44px; }
-        #voice-status { font-size:13px; color:#ddd; min-height:18px; overflow-wrap:anywhere; }
+        #voice-status { font-size:13px; color:#ddd; min-height:18px; max-height:54px; overflow-y:auto; overflow-wrap:anywhere; }
         #start-overlay { overflow-y:auto; justify-content:flex-start; padding-top:20px; box-sizing:border-box; touch-action:pan-y; }
         #voice-settings { font-size:14px; }
         #start-overlay .menu-section { flex-shrink:0; box-sizing:border-box; }
         #cfg-answer-mode { font-size:16px; padding:6px; }
+        .audio-slider { display:flex; align-items:center; gap:10px; margin:12px 0; }
+        .audio-slider input { flex:1; min-width:60px; min-height:36px; touch-action:pan-x; }
+        .audio-slider output { min-width:42px; text-align:right; }
+        #voice-settings button { font-size:14px; padding:8px 12px; }
         #voice-settings p { line-height:1.5; color:#bbb; }
     </style>
 </head>
@@ -255,8 +259,6 @@
         <div id="voice-controls" hidden>
             <button id="voice-mic" type="button">🎙 點一下回答</button>
             <button id="voice-replay" type="button">🔊 重聽</button>
-            <button id="voice-auto" type="button" aria-pressed="false">朗讀：關</button>
-            <button id="voice-switch" type="button">切換鍵盤</button>
             <div id="voice-status" role="status" aria-live="polite"></div>
         </div>
         <div id="level-up-toast"></div>
@@ -322,7 +324,14 @@
             <h3>🔊 語音設定</h3>
             <label>作答方式 <select id="cfg-answer-mode"><option value="keyboard">原版鍵盤</option><option value="voice">日文語音</option></select></label>
             <p><label><input id="cfg-speech" type="checkbox"> 題目出現時自動朗讀日文</label></p>
-            <p id="voice-support">語音模式每題點一下麥克風；可隨時切回鍵盤。單音辨識可能不準，語音成績不寫入鍵盤熟悉度圖鑑。語音可能由瀏覽器服務連線處理。</p>
+            <label class="audio-slider" for="cfg-voice-volume">語音音量 <input id="cfg-voice-volume" type="range" min="0" max="100" value="100"><output id="voice-volume-value" for="cfg-voice-volume">100%</output></label>
+            <button id="preview-voice" type="button">🔊 試聽語音</button>
+            <p style="font-size:12px">100% 為瀏覽器朗讀上限；若仍偏小，請在試聽時調高 iPhone 媒體音量。</p>
+            <p><label><input id="cfg-sfx" type="checkbox" checked> 遊戲音效</label></p>
+            <label class="audio-slider" for="cfg-sfx-volume">音效音量 <input id="cfg-sfx-volume" type="range" min="0" max="100" value="35"><output id="sfx-volume-value" for="cfg-sfx-volume">35%</output></label>
+            <button type="button" data-sfx-preview="shot">試聽射擊</button><button type="button" data-sfx-preview="error">試聽錯誤</button>
+            <button type="button" data-sfx-preview="break">試聽擊破</button><button type="button" data-sfx-preview="level">試聽升級</button>
+            <p id="voice-support">語音模式每題點一下麥克風；作答方式與聲音設定請在開始頁面選擇。單音辨識可能不準，語音成績不寫入鍵盤熟悉度圖鑑。語音可能由瀏覽器服務連線處理。</p>
         </div>
         <div class="menu-section">
             <h3>📖 單字元反射訓練 (智慧演算法)</h3>
@@ -479,7 +488,8 @@
         }
 
         function resumeFromPause() {
-            document.getElementById('voice-controls').hidden = false;
+            unlockAudio();
+            document.getElementById('voice-controls').hidden = speechMode !== 'voice';
             if (matchCount >= targetKana.length) questionTransition = setTimeout(clearAndExplode, 150);
             pauseOverlay.style.display = 'none';
             if (speechMode === 'keyboard') hiddenInput.focus();
@@ -656,11 +666,12 @@
 
         function startGame(singleMode, practiceMode) {
             stopSpeech();
+            unlockAudio();
             clearTimeout(questionTransition);
             speechMode = document.getElementById('cfg-answer-mode').value;
             if (speechMode === 'voice') hiddenInput.blur();
             resumeOverlay.style.display = 'none';
-            document.getElementById('voice-controls').hidden = false;
+            document.getElementById('voice-controls').hidden = speechMode !== 'voice';
             updateVoiceControls();
             isSingleMode = singleMode;
             isPracticeMode = practiceMode;
@@ -706,6 +717,7 @@
         }
 
         function showLevelUpToast(msg) {
+            playSfx('level');
             const toast = document.getElementById('level-up-toast');
             toast.textContent = msg;
             if (typeof toast.getAnimations === 'function') toast.getAnimations().forEach(anim => anim.cancel());
@@ -831,6 +843,7 @@
                 updateComboUI();
 
                 }
+                if (!fromVoice || voiceFirst) playSfx('shot');
                 fireLaser(matchCount);
                 matchCount++;
                 
@@ -860,6 +873,7 @@
             } else if (isIntermediate) {
                 hiddenInput.value = lastChar;
             } else {
+                playSfx('error');
                 currentMistakes++;
                 currentCombo = 0;
                 comboThreshold = 3.0;
@@ -923,6 +937,7 @@
 
         function clearAndExplode() {
             if (!gameAcceptsAnswer()) return;
+            playSfx('break');
             cancelAnimationFrame(animationFrameId);
             const parts = document.querySelectorAll('#kanji-display, .kana-char, .romaji-char');
             parts.forEach(part => {
@@ -1369,27 +1384,24 @@
         }
         function stopSpeech() {
             stopRecognition();
+            stopSfx();
             utterance = null;
             window.speechSynthesis?.cancel();
         }
         function updateVoiceControls() {
             document.getElementById('voice-mic').hidden = speechMode !== 'voice';
-            document.getElementById('voice-switch').textContent = speechMode === 'voice' ? '切換鍵盤' : '切換語音';
-            document.getElementById('voice-switch').disabled = !SpeechAPI || !window.isSecureContext;
-            document.getElementById('voice-auto').textContent = '朗讀：' + (autoRead ? '開' : '關');
-            document.getElementById('voice-auto').setAttribute('aria-pressed', String(autoRead));
             document.getElementById('cfg-speech').checked = autoRead;
             document.getElementById('cfg-answer-mode').value = speechMode;
         }
         function saveSpeechSettings() {
-            try { localStorage.setItem('kanaSpeechSettings', JSON.stringify({ autoRead, speechMode })); } catch (_) {}
+            try { localStorage.setItem('kanaSpeechSettings', JSON.stringify({ autoRead, speechMode, voiceVolume, sfxEnabled, sfxVolume })); } catch (_) {}
         }
-        function speakQuestion() {
-            if (!gameAcceptsAnswer() || matchCount >= targetKana.length) return;
+        function speakQuestion(preview = false) {
+            if (!preview && (!gameAcceptsAnswer() || matchCount >= targetKana.length)) return;
             stopSpeech();
             if (!window.speechSynthesis) { setVoiceStatus('此瀏覽器不支援朗讀。'); return; }
-            const speech = new SpeechSynthesisUtterance(targetKana);
-            speech.lang = 'ja-JP'; speech.rate = 0.85;
+            const speech = new SpeechSynthesisUtterance(preview ? 'こんにちは。日本語の練習を始めましょう。' : targetKana);
+            speech.lang = 'ja-JP'; speech.rate = 0.85; speech.volume = voiceVolume;
             const voice = window.speechSynthesis.getVoices().find(v => /^ja(?:-|_)/i.test(v.lang));
             if (voice) speech.voice = voice;
             utterance = speech;
@@ -1401,11 +1413,12 @@
         function beginRecognition() {
             if (!gameAcceptsAnswer() || matchCount >= targetKana.length) return;
             if (recognition) { stopRecognition(); setVoiceStatus('已取消收音，點一下可再試。'); return; }
-            if (!SpeechAPI || !window.isSecureContext) { setVoiceStatus('請以支援語音的瀏覽器開啟 HTTPS 網頁，或切換鍵盤。'); return; }
+            if (!SpeechAPI || !window.isSecureContext) { setVoiceStatus('請以支援語音的瀏覽器開啟 HTTPS 網頁，或返回主選單選擇鍵盤。'); return; }
             // A separate tap after playback prevents the speaker from answering its own question.
             if (utterance || window.speechSynthesis?.speaking) {
                 stopSpeech(); setVoiceStatus('已停止朗讀；請再點一次麥克風開始回答。'); return;
             }
+            stopSfx();
             const version = questionVersion, expected = targetKana;
             const rec = new SpeechAPI(); recognition = rec;
             rec.lang = 'ja-JP'; rec.continuous = false; rec.interimResults = false; rec.maxAlternatives = 5;
@@ -1425,59 +1438,132 @@
                         acceptInput(true, i === first);
                     }
                 } else {
+                    playSfx('error');
                     // Recognition errors aren't reliable evidence of a learner's mistake.
-                    setVoiceStatus('聽到「' + alternatives[0] + '」，未符合題目。請再試或切換鍵盤。');
+                    setVoiceStatus('聽到「' + alternatives[0] + '」，未符合題目。請再試或返回主選單選擇鍵盤。');
                 }
             };
             rec.onerror = event => {
                 if (recognition !== rec) return;
-                const errors = { 'not-allowed':'請允許麥克風／語音辨識權限，再試一次；也可切換鍵盤。', 'service-not-allowed':'語音服務不可用，請檢查 Siri／聽寫設定或切換鍵盤。', 'audio-capture':'無法使用麥克風，請檢查裝置權限。', 'network':'語音服務連線失敗，請確認網路後重試。', 'no-speech':'沒有聽到語音，請再點一下回答。', 'language-not-supported':'裝置不支援日文辨識，請切換鍵盤。' };
-                stopRecognition(); setVoiceStatus(errors[event.error] || '語音辨識中斷，請重試或切換鍵盤。');
+                const errors = { 'not-allowed':'請允許麥克風／語音辨識權限，再試一次；也可返回主選單選擇鍵盤。', 'service-not-allowed':'語音服務不可用，請檢查 Siri／聽寫設定或返回主選單選擇鍵盤。', 'audio-capture':'無法使用麥克風，請檢查裝置權限。', 'network':'語音服務連線失敗，請確認網路後重試。', 'no-speech':'沒有聽到語音，請再點一下回答。', 'language-not-supported':'裝置不支援日文辨識，請切換鍵盤。' };
+                stopRecognition(); setVoiceStatus(errors[event.error] || '語音辨識中斷，請重試或返回主選單選擇鍵盤。');
             };
             rec.onend = () => { if (recognition === rec) { stopRecognition(); setVoiceStatus('收音結束，未取得答案，請再試。'); } };
             try {
                 rec.start();
-                recognitionTimeout = setTimeout(() => { if (recognition === rec) { stopRecognition(); setVoiceStatus('收音逾時，請再試或切換鍵盤。'); } }, 12000);
-            } catch (_) { stopRecognition(); setVoiceStatus('無法啟動語音，請重試或切換鍵盤。'); }
+                recognitionTimeout = setTimeout(() => { if (recognition === rec) { stopRecognition(); setVoiceStatus('收音逾時，請再試或返回主選單選擇鍵盤。'); } }, 12000);
+            } catch (_) { stopRecognition(); setVoiceStatus('無法啟動語音，請重試或返回主選單選擇鍵盤。'); }
         }
         function resumeGame() {
+            unlockAudio();
             resumeOverlay.style.display = 'none';
             if (speechMode === 'keyboard') hiddenInput.focus();
             cancelAnimationFrame(animationFrameId); lastTime = 0;
             animationFrameId = requestAnimationFrame(runTimer);
         }
         function initSpeech() {
-            try { const saved = JSON.parse(localStorage.getItem('kanaSpeechSettings') || '{}'); autoRead = saved.autoRead === true; speechMode = saved.speechMode === 'voice' ? 'voice' : 'keyboard'; } catch (_) {}
+            try { const saved = JSON.parse(localStorage.getItem('kanaSpeechSettings') || '{}'); autoRead = saved.autoRead === true; speechMode = saved.speechMode === 'voice' ? 'voice' : 'keyboard'; voiceVolume = clampVolume(saved.voiceVolume, 1); sfxVolume = clampVolume(saved.sfxVolume, 0.35); sfxEnabled = saved.sfxEnabled !== false; } catch (_) {}
             if (!SpeechAPI || !window.isSecureContext) {
                 speechMode = 'keyboard'; document.querySelector('#cfg-answer-mode option[value="voice"]').disabled = true;
                 document.getElementById('voice-support').textContent = '此環境無法使用語音辨識；請以 iPhone Safari 開啟 HTTPS 網頁。鍵盤功能仍可使用。';
             }
             if (!window.speechSynthesis) {
                 autoRead = false;
-                ['cfg-speech', 'voice-auto', 'voice-replay'].forEach(id => document.getElementById(id).disabled = true);
+                ['cfg-speech', 'preview-voice', 'voice-replay', 'cfg-voice-volume'].forEach(id => document.getElementById(id).disabled = true);
             }
             updateVoiceControls();
+            initAudioSettings();
             document.getElementById('cfg-answer-mode').onchange = event => { speechMode = event.target.value; updateVoiceControls(); saveSpeechSettings(); };
             function toggleRead(enabled) { autoRead = enabled; if (!enabled) { utterance = null; window.speechSynthesis?.cancel(); } updateVoiceControls(); saveSpeechSettings(); }
             document.getElementById('cfg-speech').onchange = event => toggleRead(event.target.checked);
-            document.getElementById('voice-auto').onclick = () => { toggleRead(!autoRead); if (autoRead) speakQuestion(); };
             document.querySelectorAll('#voice-controls button').forEach(button => {
                 button.addEventListener('pointerdown', event => event.preventDefault());
             });
-            document.getElementById('voice-replay').onclick = speakQuestion;
+            document.getElementById('voice-replay').onclick = () => speakQuestion();
             document.getElementById('voice-mic').onclick = beginRecognition;
-            document.getElementById('voice-switch').onclick = () => {
-                stopSpeech(); speechMode = speechMode === 'voice' ? 'keyboard' : 'voice';
-                updateVoiceControls(); saveSpeechSettings();
-                if (speechMode === 'voice') { hiddenInput.blur(); resumeOverlay.style.display = 'none'; }
-                else hiddenInput.focus();
-                setVoiceStatus(speechMode === 'voice' ? '點一下麥克風回答完整題目。' : '已切回原版鍵盤操作。');
-            };
             document.addEventListener('visibilitychange', () => { if (document.hidden && gameAcceptsAnswerBeforeHide()) showPauseMenu(); });
             window.addEventListener('pagehide', stopSpeech);
         }
         function gameAcceptsAnswerBeforeHide() {
             return startOverlay.style.display === 'none' && answerOverlay.style.display === 'none' && pauseOverlay.style.display !== 'flex';
+        }
+
+        let voiceVolume = 1, sfxVolume = 0.35, sfxEnabled = true;
+        let audioContext = null;
+        const activeSounds = new Set();
+        const lastSound = new Map();
+        function clampVolume(value, fallback) {
+            return typeof value === 'number' && Number.isFinite(value) ? Math.max(0, Math.min(1, value)) : fallback;
+        }
+        function unlockAudio() {
+            try {
+                const AudioAPI = window.AudioContext || window.webkitAudioContext;
+                if (!AudioAPI) return null;
+                if (!audioContext) audioContext = new AudioAPI();
+                if (audioContext.state === 'suspended') audioContext.resume().catch(() => {});
+                return audioContext;
+            } catch (_) { return null; }
+        }
+        function stopSfx() {
+            activeSounds.forEach(osc => { try { osc.stop(); } catch (_) {} });
+            activeSounds.clear();
+        }
+        function playSfx(kind) {
+            if (!sfxEnabled || sfxVolume <= 0 || recognition || document.hidden) return;
+            const ctx = audioContext;
+            if (!ctx || ctx.state !== 'running') return;
+            const now = ctx.currentTime;
+            if (now - (lastSound.get(kind) ?? -Infinity) < 0.065) return;
+            lastSound.set(kind, now);
+            // Brief, soft envelopes: no harsh noise or sustained gunfire.
+            const sounds = {
+                shot: [[0, 720, 240, 0.075, 0.16]],
+                error: [[0, 220, 150, 0.10, 0.18], [0.12, 180, 120, 0.10, 0.14]],
+                break: [[0, 440, 660, 0.12, 0.20], [0.06, 660, 880, 0.16, 0.16], [0.13, 880, 1100, 0.17, 0.12]],
+                level: [[0, 523, 523, 0.12, 0.18], [0.12, 659, 659, 0.12, 0.18], [0.24, 784, 784, 0.12, 0.18], [0.36, 1047, 1047, 0.24, 0.16]]
+            };
+            for (const [delay, from, to, duration, level] of sounds[kind] || []) {
+                try {
+                    const osc = ctx.createOscillator(), gain = ctx.createGain();
+                    const start = now + delay;
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(from, start);
+                    osc.frequency.exponentialRampToValueAtTime(to, start + duration);
+                    const duck = window.speechSynthesis?.speaking ? 0.25 : 1;
+                    gain.gain.setValueAtTime(0, start);
+                    gain.gain.linearRampToValueAtTime(level * sfxVolume * duck, start + 0.008);
+                    gain.gain.exponentialRampToValueAtTime(0.0001, start + duration);
+                    osc.connect(gain); gain.connect(ctx.destination);
+                    activeSounds.add(osc);
+                    osc.onended = () => { activeSounds.delete(osc); osc.disconnect(); gain.disconnect(); };
+                    osc.start(start); osc.stop(start + duration + 0.02);
+                } catch (_) { /* Audio failure must never interrupt an answer. */ }
+            }
+        }
+        function initAudioSettings() {
+            document.getElementById('cfg-sfx').checked = sfxEnabled;
+            for (const [id, output, value] of [['cfg-voice-volume', 'voice-volume-value', voiceVolume], ['cfg-sfx-volume', 'sfx-volume-value', sfxVolume]]) {
+                document.getElementById(id).value = Math.round(value * 100);
+                document.getElementById(output).textContent = Math.round(value * 100) + '%';
+                document.getElementById(id).oninput = event => {
+                    const volume = clampVolume(Number(event.target.value) / 100, value);
+                    if (id === 'cfg-voice-volume') { voiceVolume = volume; utterance = null; window.speechSynthesis?.cancel(); }
+                    else { sfxVolume = volume; stopSfx(); }
+                    document.getElementById(output).textContent = Math.round(volume * 100) + '%';
+                    saveSpeechSettings();
+                };
+            }
+            document.getElementById('cfg-sfx').onchange = event => { sfxEnabled = event.target.checked; stopSfx(); saveSpeechSettings(); };
+            document.getElementById('preview-voice').onclick = () => speakQuestion(true);
+            document.querySelectorAll('[data-sfx-preview]').forEach(button => {
+                button.onclick = async () => {
+                    stopSpeech();
+                    const ctx = unlockAudio();
+                    if (!ctx) return;
+                    try { if (ctx.state !== 'running') await ctx.resume(); } catch (_) { return; }
+                    if (startOverlay.style.display !== 'none') playSfx(button.dataset.sfxPreview);
+                };
+            });
         }
 
         initSpeech();
