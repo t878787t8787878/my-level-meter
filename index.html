@@ -221,6 +221,15 @@
         .stats-legend { display: flex; flex-wrap: wrap; justify-content: center; gap: 15px; margin-top: 20px; font-size: 0.9rem; color: #ccc; }
         .legend-item { display: flex; align-items: center; gap: 5px; }
         .color-box { width: 15px; height: 15px; border-radius: 3px; }
+    
+        #voice-controls { position:absolute; bottom: max(8px, env(safe-area-inset-bottom)); left:8px; right:8px; z-index:95; text-align:center; background:#050510ed; border-radius:12px; padding:6px; }
+        #voice-controls button { font-size:14px; padding:8px; min-height:44px; }
+        #voice-status { font-size:13px; color:#ddd; min-height:18px; overflow-wrap:anywhere; }
+        #start-overlay { overflow-y:auto; justify-content:flex-start; padding-top:20px; box-sizing:border-box; touch-action:pan-y; }
+        #voice-settings { font-size:14px; }
+        #start-overlay .menu-section { flex-shrink:0; box-sizing:border-box; }
+        #cfg-answer-mode { font-size:16px; padding:6px; }
+        #voice-settings p { line-height:1.5; color:#bbb; }
     </style>
 </head>
 <body>
@@ -243,6 +252,13 @@
             <div id="combo-bar-container"><div id="combo-bar"></div></div>
         </div>
 
+        <div id="voice-controls" hidden>
+            <button id="voice-mic" type="button">🎙 點一下回答</button>
+            <button id="voice-replay" type="button">🔊 重聽</button>
+            <button id="voice-auto" type="button" aria-pressed="false">朗讀：關</button>
+            <button id="voice-switch" type="button">切換鍵盤</button>
+            <div id="voice-status" role="status" aria-live="polite"></div>
+        </div>
         <div id="level-up-toast"></div>
 
         <div id="word-container">
@@ -302,6 +318,12 @@
     <div id="start-overlay" class="overlay">
         <h1 style="color:#00FFFF; margin-bottom: 10px;">大腦重塑特訓</h1>
         
+        <div class="menu-section" id="voice-settings">
+            <h3>🔊 語音設定</h3>
+            <label>作答方式 <select id="cfg-answer-mode"><option value="keyboard">原版鍵盤</option><option value="voice">日文語音</option></select></label>
+            <p><label><input id="cfg-speech" type="checkbox"> 題目出現時自動朗讀日文</label></p>
+            <p id="voice-support">語音模式每題點一下麥克風；可隨時切回鍵盤。單音辨識可能不準，語音成績不寫入鍵盤熟悉度圖鑑。語音可能由瀏覽器服務連線處理。</p>
+        </div>
         <div class="menu-section">
             <h3>📖 單字元反射訓練 (智慧演算法)</h3>
             <div class="setting-row">
@@ -422,7 +444,7 @@
             if (window.visualViewport) {
                 vpContainer.style.height = window.visualViewport.height + 'px';
                 vpContainer.style.top = window.visualViewport.offsetTop + 'px';
-                if (window.visualViewport.height >= window.innerHeight * 0.85) {
+                if (speechMode === 'keyboard' && window.visualViewport.height >= window.innerHeight * 0.85) {
                     if (startOverlay.style.display === 'none' && answerOverlay.style.display === 'none' && pauseOverlay.style.display === 'none' && resumeOverlay.style.display !== 'flex') {
                         resumeOverlay.style.display = 'flex';
                         cancelAnimationFrame(animationFrameId); 
@@ -436,7 +458,7 @@
                 }
             }
         }
-        window.visualViewport.addEventListener('resize', resizeLayout);
+        window.visualViewport?.addEventListener('resize', resizeLayout);
 
         function toKatakana(hiragana) {
             return hiragana.replace(/[\u3041-\u3096]/g, match => {
@@ -448,19 +470,27 @@
         }
 
         function showPauseMenu() {
+            stopSpeech();
+            clearTimeout(questionTransition);
+            document.getElementById("voice-controls").hidden = true;
             cancelAnimationFrame(animationFrameId);
             pauseOverlay.style.display = 'flex';
             hiddenInput.blur();
         }
 
         function resumeFromPause() {
+            document.getElementById('voice-controls').hidden = false;
+            if (matchCount >= targetKana.length) questionTransition = setTimeout(clearAndExplode, 150);
             pauseOverlay.style.display = 'none';
-            hiddenInput.focus();
+            if (speechMode === 'keyboard') hiddenInput.focus();
             lastTime = 0;
             animationFrameId = requestAnimationFrame(runTimer);
         }
 
         function returnToMenu() {
+            stopSpeech();
+            clearTimeout(questionTransition);
+            document.getElementById("voice-controls").hidden = true;
             cancelAnimationFrame(animationFrameId);
             pauseOverlay.style.display = 'none';
             answerOverlay.style.display = 'none';
@@ -625,6 +655,13 @@
         }
 
         function startGame(singleMode, practiceMode) {
+            stopSpeech();
+            clearTimeout(questionTransition);
+            speechMode = document.getElementById('cfg-answer-mode').value;
+            if (speechMode === 'voice') hiddenInput.blur();
+            resumeOverlay.style.display = 'none';
+            document.getElementById('voice-controls').hidden = false;
+            updateVoiceControls();
             isSingleMode = singleMode;
             isPracticeMode = practiceMode;
             
@@ -649,7 +686,7 @@
             
             updateStats();
             updateLevelUI(0);
-            hiddenInput.focus();
+            if (speechMode === 'keyboard') hiddenInput.focus();
             nextWord();
         }
 
@@ -756,7 +793,9 @@
             }
         }
 
-        hiddenInput.addEventListener('input', function() {
+        hiddenInput.addEventListener('input', () => acceptInput());
+        function acceptInput(fromVoice = false, voiceFirst = false) {
+            if (!gameAcceptsAnswer() || matchCount >= targetKana.length) return;
             let inputVal = toHiragana(hiddenInput.value);
             if (inputVal.length === 0) return;
             
@@ -770,7 +809,7 @@
             if (lastChar === targetChar) {
                 let reactionTime = (performance.now() - charStartTime) / 1000;
                 
-                if (isSingleMode && matchCount === 0) {
+                if (!fromVoice && isSingleMode && matchCount === 0) {
                     let displayedChar = document.getElementById('char-0').textContent;
                     let leniency = 0;
                     if (['ぱ','ぴ','ぷ','ぺ','ぽ','パ','ピ','プ','ペ','ポ','づ','ヅ'].includes(displayedChar)) leniency = 0.6;
@@ -781,6 +820,7 @@
                     updateCharStat(displayedChar, adjustedRT + penalty);
                 }
                 
+                if (!fromVoice || voiceFirst) {
                 if (!comboBrokenThisWord && reactionTime <= comboThreshold && currentMistakes === 0) {
                     currentCombo++;
                     comboThreshold = Math.max(1.0, 3.0 - (currentCombo * 0.05)); 
@@ -790,6 +830,7 @@
                 }
                 updateComboUI();
 
+                }
                 fireLaser(matchCount);
                 matchCount++;
                 
@@ -812,7 +853,7 @@
                 if (matchCount === targetKana.length) {
                     score++;
                     updateStats();
-                    setTimeout(clearAndExplode, 150); 
+                    questionTransition = setTimeout(clearAndExplode, 150); 
                 } else {
                     updateFlickHint();
                 }
@@ -832,7 +873,7 @@
                 
                 hiddenInput.value = lastChar;
             }
-        });
+        }
 
         function createParticles(x, y, color, count = 12) {
             for (let i = 0; i < count; i++) {
@@ -881,6 +922,7 @@
         }
 
         function clearAndExplode() {
+            if (!gameAcceptsAnswer()) return;
             cancelAnimationFrame(animationFrameId);
             const parts = document.querySelectorAll('#kanji-display, .kana-char, .romaji-char');
             parts.forEach(part => {
@@ -903,7 +945,7 @@
                     Math.random() > 0.5 ? '#00FFFF' : '#00FF00', 1
                 );
             }
-            setTimeout(nextWord, 400);
+            questionTransition = setTimeout(nextWord, 400);
         }
 
         function runTimer(currentTime) {
@@ -1023,6 +1065,9 @@
         }
 
         function nextWord() {
+            stopSpeech();
+            questionVersion++;
+            if (!gameAcceptsAnswer()) return;
             const kanjiDisplay = document.getElementById('kanji-display');
             if (typeof kanjiDisplay.getAnimations === 'function') kanjiDisplay.getAnimations().forEach(anim => anim.cancel());
             kanjiDisplay.style.transform = ''; kanjiDisplay.style.opacity = '';
@@ -1034,7 +1079,7 @@
             stuckTime = 0; isRescued = false;
             currentMistakes = 0; 
             comboBrokenThisWord = false; 
-            hiddenInput.focus();
+            if (speechMode === 'keyboard') hiddenInput.focus();
 
             applyRulesByScore();
 
@@ -1099,9 +1144,14 @@
             lastTime = 0;
             cancelAnimationFrame(animationFrameId);
             animationFrameId = requestAnimationFrame(runTimer);
+            setVoiceStatus('點一下麥克風，用日文回答完整題目。');
+            if (autoRead) speakQuestion();
         }
 
         function showAnswer() {
+            stopSpeech();
+            clearTimeout(questionTransition);
+            document.getElementById("voice-controls").hidden = true;
             cancelAnimationFrame(animationFrameId);
             document.getElementById('answer-detail').innerHTML = `讀音：<b style="color:#00FF00">${targetKana}</b>`;
             document.getElementById('final-score').textContent = `本次特訓擊破數：${score}`;
@@ -1110,6 +1160,327 @@
             hiddenInput.blur();
         }
 
+        // Speech is optional: keyboard rules and vocabulary remain the source of truth.
+        let speechMode = 'keyboard', autoRead = false, recognition = null;
+        let questionVersion = 0, questionTransition = null, recognitionTimeout = null;
+        let utterance = null;
+        const SpeechAPI = window.SpeechRecognition || window.webkitSpeechRecognition;
+        const speechAliases = Object.fromEntries(`
+いぬ=犬
+ねこ=猫
+とり=鳥
+うし=牛
+ぶた=豚
+うま=馬
+さかな=魚
+むし=虫
+さる=猿
+くま=熊
+きつね=狐
+たぬき=狸
+ねずみ=鼠
+うさぎ=兎
+さくら=桜
+やま=山
+かわ=川,河
+うみ=海
+そら=空
+ほし=星
+つき=月
+たいよう=太陽
+くも=雲,蜘蛛
+かぜ=風
+あめ=雨,飴
+ゆき=雪
+かみなり=雷
+はな=花,鼻
+き=木,気
+いし=石,意思
+はる=春
+なつ=夏
+あき=秋
+ふゆ=冬
+みず=水
+さけ=酒,鮭
+おちゃ=お茶
+こうちゃ=紅茶
+こーひー=珈琲
+ぎゅうにゅう=牛乳
+にく=肉
+ごはん=ご飯,御飯
+たまご=卵,玉子
+やさい=野菜
+くだもの=果物
+りんご=林檎
+みかん=蜜柑
+いちご=苺
+すいか=西瓜
+ぶどう=葡萄
+すし=寿司,鮨
+らーめん=ラーメン,拉麺
+うどん=饂飩
+そば=蕎麦
+てんぷら=天ぷら,天麩羅
+さしみ=刺身
+おにぎり=お握り
+やきとり=焼き鳥,焼鳥
+やきにく=焼肉,焼き肉
+ぎゅうどん=牛丼
+べんとう=弁当
+えき=駅
+くうこう=空港
+はし=橋,箸,端
+みち=道
+がっこう=学校
+だいがく=大学
+びょういん=病院
+ぎんこう=銀行
+ゆうびんきょく=郵便局
+けいさつしょ=警察署
+しょうぼうしょ=消防署
+こうえん=公園,講演
+じんじゃ=神社
+てら=寺
+としょかん=図書館
+えいがかん=映画館
+びじゅつかん=美術館
+どうぶつえん=動物園
+かいしゃ=会社
+いえ=家
+へや=部屋
+おくじょう=屋上
+くるま=車
+じてんしゃ=自転車
+でんしゃ=電車
+ちかてつ=地下鉄
+しんかんせん=新幹線
+ひこうき=飛行機
+ふね=船
+とうきょう=東京
+おおさか=大阪
+きょうと=京都
+ほっかいどう=北海道
+かさ=傘
+くつ=靴
+ふく=服
+ぼうし=帽子
+めがね=眼鏡
+かばん=鞄
+さいふ=財布
+とけい=時計
+かぎ=鍵
+かね=金
+ほん=本
+じしょ=辞書
+ざっし=雑誌
+しんぶん=新聞
+えんぴつ=鉛筆
+けしごむ=消しゴム
+けいたい=携帯
+くすり=薬
+にもつ=荷物
+きっぷ=切符
+ひみつ=秘密
+たばこ=煙草
+いす=椅子
+つくえ=机
+れいぞうこ=冷蔵庫
+せんたくき=洗濯機
+そうじき=掃除機
+せんぷうき=扇風機
+しゃしん=写真
+てがみ=手紙
+あたま=頭
+かお=顔
+め=目,芽
+みみ=耳
+くち=口
+は=歯,葉
+かみ=髪,紙,神
+て=手
+あし=足,脚
+おなか=お腹
+せなか=背中
+わたし=私
+あなた=貴方
+せんせい=先生
+がくせい=学生
+ともだち=友達,友だち
+おとこ=男
+おんな=女
+こども=子供,子ども
+おとな=大人
+いしゃ=医者
+けいかん=警官
+てんいん=店員
+おはよう=お早う
+おやすみ=お休み
+ありがとう=有難う,有り難う
+すみません=済みません
+ごめんなさい=ご免なさい,御免なさい
+いただきます=頂きます
+ごちそうさま=ご馳走様,ごちそう様
+おつかれさま=お疲れ様,お疲れさま
+おめでとう=お目出度う
+さようなら=左様なら
+おねがいします=お願いします
+だいじょうぶ=大丈夫
+おおきい=大きい
+ちいさい=小さい
+たかい=高い
+やすい=安い
+あたらしい=新しい
+ふるい=古い
+あつい=暑い,熱い,厚い
+さむい=寒い
+おいしい=美味しい
+まずい=不味い
+たのしい=楽しい
+つまらない=詰まらない
+むずかしい=難しい
+やさしい=易しい,優しい
+いそがしい=忙しい
+おもしろい=面白い
+すき=好き
+きらい=嫌い
+やきゅう=野球
+りょこう=旅行
+おんがく=音楽
+えいが=映画
+`.trim().split('\n').map(line => { const [kana, forms] = line.split('='); return [kana, forms.split(',')]; }));
+        function normalizeSpeech(text) {
+            return toHiragana(text.normalize('NFKC')).replace(/[\s。、，,.！？!?「」『』]/g, '');
+        }
+        function speechMatches(text, expected) {
+            const normalized = normalizeSpeech(text);
+            const kana = normalizeSpeech(expected);
+            return normalized === kana || (speechAliases[kana] || []).some(form => normalizeSpeech(form) === normalized);
+        }
+        function gameAcceptsAnswer() {
+            return startOverlay.style.display === 'none' && answerOverlay.style.display === 'none'
+                && pauseOverlay.style.display !== 'flex' && resumeOverlay.style.display !== 'flex' && !document.hidden;
+        }
+        function setVoiceStatus(message) { document.getElementById('voice-status').textContent = message; }
+        function stopRecognition() {
+            const old = recognition; recognition = null;
+            clearTimeout(recognitionTimeout);
+            if (old) { old.onend = old.onerror = old.onresult = null; try { old.abort(); } catch (_) {} }
+            document.getElementById('voice-mic').textContent = '🎙 點一下回答';
+        }
+        function stopSpeech() {
+            stopRecognition();
+            utterance = null;
+            window.speechSynthesis?.cancel();
+        }
+        function updateVoiceControls() {
+            document.getElementById('voice-mic').hidden = speechMode !== 'voice';
+            document.getElementById('voice-switch').textContent = speechMode === 'voice' ? '切換鍵盤' : '切換語音';
+            document.getElementById('voice-switch').disabled = !SpeechAPI || !window.isSecureContext;
+            document.getElementById('voice-auto').textContent = '朗讀：' + (autoRead ? '開' : '關');
+            document.getElementById('voice-auto').setAttribute('aria-pressed', String(autoRead));
+            document.getElementById('cfg-speech').checked = autoRead;
+            document.getElementById('cfg-answer-mode').value = speechMode;
+        }
+        function saveSpeechSettings() {
+            try { localStorage.setItem('kanaSpeechSettings', JSON.stringify({ autoRead, speechMode })); } catch (_) {}
+        }
+        function speakQuestion() {
+            if (!gameAcceptsAnswer() || matchCount >= targetKana.length) return;
+            stopSpeech();
+            if (!window.speechSynthesis) { setVoiceStatus('此瀏覽器不支援朗讀。'); return; }
+            const speech = new SpeechSynthesisUtterance(targetKana);
+            speech.lang = 'ja-JP'; speech.rate = 0.85;
+            const voice = window.speechSynthesis.getVoices().find(v => /^ja(?:-|_)/i.test(v.lang));
+            if (voice) speech.voice = voice;
+            utterance = speech;
+            setVoiceStatus('朗讀中；聽完後點麥克風回答。');
+            speech.onend = () => { if (utterance === speech) { utterance = null; setVoiceStatus('可點麥克風回答，或按重聽。'); } };
+            speech.onerror = () => { if (utterance === speech) { utterance = null; setVoiceStatus('未能朗讀，請點「重聽」，並確認裝置有日文語音。'); } };
+            window.speechSynthesis.speak(speech);
+        }
+        function beginRecognition() {
+            if (!gameAcceptsAnswer() || matchCount >= targetKana.length) return;
+            if (recognition) { stopRecognition(); setVoiceStatus('已取消收音，點一下可再試。'); return; }
+            if (!SpeechAPI || !window.isSecureContext) { setVoiceStatus('請以支援語音的瀏覽器開啟 HTTPS 網頁，或切換鍵盤。'); return; }
+            // A separate tap after playback prevents the speaker from answering its own question.
+            if (utterance || window.speechSynthesis?.speaking) {
+                stopSpeech(); setVoiceStatus('已停止朗讀；請再點一次麥克風開始回答。'); return;
+            }
+            const version = questionVersion, expected = targetKana;
+            const rec = new SpeechAPI(); recognition = rec;
+            rec.lang = 'ja-JP'; rec.continuous = false; rec.interimResults = false; rec.maxAlternatives = 5;
+            document.getElementById('voice-mic').textContent = '■ 取消收音';
+            setVoiceStatus('正在聆聽，請用日文回答…');
+            rec.onresult = event => {
+                if (recognition !== rec || version !== questionVersion || !gameAcceptsAnswer()) return;
+                const result = event.results[event.resultIndex];
+                if (!result.isFinal) return;
+                const alternatives = Array.from(result, item => item.transcript);
+                stopRecognition();
+                if (alternatives.some(text => speechMatches(text, expected))) {
+                    setVoiceStatus('✓ 辨識：' + alternatives[0]);
+                    const first = matchCount;
+                    for (let i = first; i < expected.length; i++) {
+                        hiddenInput.value = expected[i];
+                        acceptInput(true, i === first);
+                    }
+                } else {
+                    // Recognition errors aren't reliable evidence of a learner's mistake.
+                    setVoiceStatus('聽到「' + alternatives[0] + '」，未符合題目。請再試或切換鍵盤。');
+                }
+            };
+            rec.onerror = event => {
+                if (recognition !== rec) return;
+                const errors = { 'not-allowed':'請允許麥克風／語音辨識權限，再試一次；也可切換鍵盤。', 'service-not-allowed':'語音服務不可用，請檢查 Siri／聽寫設定或切換鍵盤。', 'audio-capture':'無法使用麥克風，請檢查裝置權限。', 'network':'語音服務連線失敗，請確認網路後重試。', 'no-speech':'沒有聽到語音，請再點一下回答。', 'language-not-supported':'裝置不支援日文辨識，請切換鍵盤。' };
+                stopRecognition(); setVoiceStatus(errors[event.error] || '語音辨識中斷，請重試或切換鍵盤。');
+            };
+            rec.onend = () => { if (recognition === rec) { stopRecognition(); setVoiceStatus('收音結束，未取得答案，請再試。'); } };
+            try {
+                rec.start();
+                recognitionTimeout = setTimeout(() => { if (recognition === rec) { stopRecognition(); setVoiceStatus('收音逾時，請再試或切換鍵盤。'); } }, 12000);
+            } catch (_) { stopRecognition(); setVoiceStatus('無法啟動語音，請重試或切換鍵盤。'); }
+        }
+        function resumeGame() {
+            resumeOverlay.style.display = 'none';
+            if (speechMode === 'keyboard') hiddenInput.focus();
+            cancelAnimationFrame(animationFrameId); lastTime = 0;
+            animationFrameId = requestAnimationFrame(runTimer);
+        }
+        function initSpeech() {
+            try { const saved = JSON.parse(localStorage.getItem('kanaSpeechSettings') || '{}'); autoRead = saved.autoRead === true; speechMode = saved.speechMode === 'voice' ? 'voice' : 'keyboard'; } catch (_) {}
+            if (!SpeechAPI || !window.isSecureContext) {
+                speechMode = 'keyboard'; document.querySelector('#cfg-answer-mode option[value="voice"]').disabled = true;
+                document.getElementById('voice-support').textContent = '此環境無法使用語音辨識；請以 iPhone Safari 開啟 HTTPS 網頁。鍵盤功能仍可使用。';
+            }
+            if (!window.speechSynthesis) {
+                autoRead = false;
+                ['cfg-speech', 'voice-auto', 'voice-replay'].forEach(id => document.getElementById(id).disabled = true);
+            }
+            updateVoiceControls();
+            document.getElementById('cfg-answer-mode').onchange = event => { speechMode = event.target.value; updateVoiceControls(); saveSpeechSettings(); };
+            function toggleRead(enabled) { autoRead = enabled; if (!enabled) { utterance = null; window.speechSynthesis?.cancel(); } updateVoiceControls(); saveSpeechSettings(); }
+            document.getElementById('cfg-speech').onchange = event => toggleRead(event.target.checked);
+            document.getElementById('voice-auto').onclick = () => { toggleRead(!autoRead); if (autoRead) speakQuestion(); };
+            document.querySelectorAll('#voice-controls button').forEach(button => {
+                button.addEventListener('pointerdown', event => event.preventDefault());
+            });
+            document.getElementById('voice-replay').onclick = speakQuestion;
+            document.getElementById('voice-mic').onclick = beginRecognition;
+            document.getElementById('voice-switch').onclick = () => {
+                stopSpeech(); speechMode = speechMode === 'voice' ? 'keyboard' : 'voice';
+                updateVoiceControls(); saveSpeechSettings();
+                if (speechMode === 'voice') { hiddenInput.blur(); resumeOverlay.style.display = 'none'; }
+                else hiddenInput.focus();
+                setVoiceStatus(speechMode === 'voice' ? '點一下麥克風回答完整題目。' : '已切回原版鍵盤操作。');
+            };
+            document.addEventListener('visibilitychange', () => { if (document.hidden && gameAcceptsAnswerBeforeHide()) showPauseMenu(); });
+            window.addEventListener('pagehide', stopSpeech);
+        }
+        function gameAcceptsAnswerBeforeHide() {
+            return startOverlay.style.display === 'none' && answerOverlay.style.display === 'none' && pauseOverlay.style.display !== 'flex';
+        }
+
+        initSpeech();
         resizeLayout();
     </script>
 </body>
